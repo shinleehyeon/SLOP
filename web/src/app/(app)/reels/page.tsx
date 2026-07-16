@@ -29,10 +29,11 @@ function buildLoop(baseReels: FeedReel[], cycle: number): FeedItem[] {
 export default function ReelsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ user?: string; start?: string }>;
+  searchParams: Promise<{ user?: string; start?: string; seriesId?: string }>;
 }) {
   const params = use(searchParams);
   const startReelId = params.start;
+  const exploreSeriesId = params.seriesId;
 
   const [baseReels, setBaseReels] = useState<FeedReel[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -41,6 +42,25 @@ export default function ReelsPage({
     const accessToken = getAccessToken();
     if (!accessToken) {
       setLoadError("로그인이 필요합니다.");
+      return;
+    }
+
+    // Coming from 둘러보기/검색: load just the tapped series instead of the
+    // signed-in user's own generation history.
+    if (exploreSeriesId) {
+      fetchShortSeries(exploreSeriesId, accessToken)
+        .then((series) => {
+          setBaseReels(
+            series.shorts.map((short) => ({
+              id: short.id,
+              title: short.title,
+              tags: short.tags,
+              videoUrl: short.videoFileUrl,
+              creatorName: series.title,
+            })),
+          );
+        })
+        .catch(() => setLoadError("숏폼을 불러오지 못했습니다."));
       return;
     }
 
@@ -73,7 +93,7 @@ export default function ReelsPage({
         setBaseReels(reels);
       })
       .catch(() => setLoadError("숏폼을 불러오지 못했습니다."));
-  }, []);
+  }, [exploreSeriesId]);
 
   const [items, setItems] = useState<FeedItem[]>([]);
   const cycleRef = useRef(1);

@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   fetchSearchHome,
-  type SearchExploreShort,
+  fetchSearchQuery,
   type SearchHome,
+  type SearchQueryResult,
   type SearchRecommendedAccount,
 } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
@@ -17,11 +18,24 @@ function formatCount(count: number): string {
   return String(count);
 }
 
+interface DisplayShort {
+  shortId: string;
+  seriesId: string;
+  title: string;
+  tags: string[];
+  videoUrl: string;
+  likeCount: number | null;
+}
+
+const SEARCH_DEBOUNCE_MS = 300;
+
 export default function SearchPage() {
   const [query, setQuery] = useState("");
-  const [data, setData] = useState<SearchHome | null>(null);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [homeData, setHomeData] = useState<SearchHome | null>(null);
+  const [queryResult, setQueryResult] = useState<SearchQueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const trimmed = query.trim().toLowerCase();
+  const trimmed = query.trim();
 
   useEffect(() => {
     const accessToken = getAccessToken();
@@ -30,25 +44,63 @@ export default function SearchPage() {
       return;
     }
     fetchSearchHome(accessToken)
-      .then(setData)
+      .then(setHomeData)
       .catch(() => setError("검색 홈 정보를 불러오지 못했습니다."));
   }, []);
 
-  const matchedAccounts: SearchRecommendedAccount[] = useMemo(() => {
-    const accounts = data?.recommendedAccounts ?? [];
-    if (!trimmed) return accounts;
-    return accounts.filter((a) => a.name.toLowerCase().includes(trimmed));
-  }, [trimmed, data]);
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebouncedQuery(query.trim()), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [query]);
 
-  const matchedShorts: SearchExploreShort[] = useMemo(() => {
-    const shorts = data?.exploreShorts ?? [];
-    if (!trimmed) return shorts;
-    return shorts.filter(
-      (s) =>
-        s.title.toLowerCase().includes(trimmed) ||
-        s.tags.some((t) => t.toLowerCase().includes(trimmed)),
-    );
-  }, [trimmed, data]);
+  useEffect(() => {
+    if (!debouncedQuery) {
+      setQueryResult(null);
+      return;
+    }
+    const accessToken = getAccessToken();
+    if (!accessToken) return;
+
+    let cancelled = false;
+    fetchSearchQuery(debouncedQuery, accessToken)
+      .then((result) => {
+        if (!cancelled) setQueryResult(result);
+      })
+      .catch(() => {
+        if (!cancelled) setError("검색에 실패했습니다.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedQuery]);
+
+  const isSearching = trimmed.length > 0;
+
+  const matchedAccounts: SearchRecommendedAccount[] = useMemo(() => {
+    if (!isSearching) return homeData?.recommendedAccounts ?? [];
+    return queryResult?.accounts ?? [];
+  }, [isSearching, homeData, queryResult]);
+
+  const matchedShorts: DisplayShort[] = useMemo(() => {
+    if (!isSearching) {
+      return (homeData?.exploreShorts ?? []).map((s) => ({
+        shortId: s.shortId,
+        seriesId: s.seriesId,
+        title: s.title,
+        tags: s.tags,
+        videoUrl: s.videoUrl,
+        likeCount: s.likeCount,
+      }));
+    }
+    return (queryResult?.shorts ?? []).map((s) => ({
+      shortId: s.shortId,
+      seriesId: s.seriesId,
+      title: s.title,
+      tags: s.tags,
+      videoUrl: s.videoUrl,
+      likeCount: null,
+    }));
+  }, [isSearching, homeData, queryResult]);
 
   return (
     <div className={styles.page}>
@@ -86,7 +138,7 @@ export default function SearchPage() {
           <>
             <section className={styles.section}>
               <h2 className={styles.sectionTitle}>
-                {trimmed ? "계정" : "추천 계정"}
+                {isSearching ? "계정" : "추천 계정"}
               </h2>
               {matchedAccounts.length === 0 ? (
                 <p className={styles.empty}>일치하는 계정이 없어요</p>
@@ -127,7 +179,7 @@ export default function SearchPage() {
             </section>
 
             <section className={styles.section}>
-              <h2 className={styles.sectionTitle}>{trimmed ? "릴스" : "둘러보기"}</h2>
+              <h2 className={styles.sectionTitle}>{isSearching ? "릴스" : "둘러보기"}</h2>
               {matchedShorts.length === 0 ? (
                 <p className={styles.empty}>일치하는 릴스가 없어요</p>
               ) : (
@@ -135,7 +187,7 @@ export default function SearchPage() {
                   {matchedShorts.map((short) => (
                     <Link
                       key={short.shortId}
-                      href={`/reels?start=${short.shortId}`}
+                      href={`/reels?seriesId=${short.seriesId}&start=${short.shortId}`}
                       className={styles.reelThumb}
                     >
                       <video
@@ -145,12 +197,14 @@ export default function SearchPage() {
                         preload="metadata"
                         playsInline
                       />
-                      <span className={styles.reelThumbLikes}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="white" aria-hidden="true">
-                          <path d="M12 21s-6.7-4.35-9.3-8.28C.9 9.94 1.6 6.4 4.6 5.1c2-.87 4-.2 5.4 1.6 1.4-1.8 3.4-2.47 5.4-1.6 3 1.3 3.7 4.84 1.9 7.62C18.7 16.65 12 21 12 21z" />
-                        </svg>
-                        {formatCount(short.likeCount)}
-                      </span>
+                      {short.likeCount !== null && (
+                        <span className={styles.reelThumbLikes}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+                            <path d="M12 21s-6.7-4.35-9.3-8.28C.9 9.94 1.6 6.4 4.6 5.1c2-.87 4-.2 5.4 1.6 1.4-1.8 3.4-2.47 5.4-1.6 3 1.3 3.7 4.84 1.9 7.62C18.7 16.65 12 21 12 21z" />
+                          </svg>
+                          {formatCount(short.likeCount)}
+                        </span>
+                      )}
                     </Link>
                   ))}
                 </div>

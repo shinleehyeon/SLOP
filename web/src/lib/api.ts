@@ -436,6 +436,41 @@ export async function fetchSearchHome(accessToken: string): Promise<SearchHome> 
   return data.body as SearchHome;
 }
 
+export interface SearchQueryShort {
+  shortId: string;
+  seriesId: string;
+  title: string;
+  seriesTitle: string;
+  tags: string[];
+  videoUrl: string;
+  creatorUserId: string;
+  creatorName: string;
+  createdAt: string;
+}
+
+export interface SearchQueryResult {
+  query: string;
+  accounts: SearchRecommendedAccount[];
+  shorts: SearchQueryShort[];
+}
+
+export async function fetchSearchQuery(
+  query: string,
+  accessToken: string,
+): Promise<SearchQueryResult> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/search/query?${new URLSearchParams({ q: query }).toString()}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to search");
+  }
+
+  const data = await res.json();
+  return data.body as SearchQueryResult;
+}
+
 export async function fetchMe(accessToken: string): Promise<MeUser> {
   const res = await fetch(`${API_BASE_URL}/api/users/me`, {
     headers: { Authorization: `Bearer ${accessToken}` },

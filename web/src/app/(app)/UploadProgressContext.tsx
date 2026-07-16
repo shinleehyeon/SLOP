@@ -33,6 +33,7 @@ type UploadState =
   | { status: "uploading"; progress: number; kind: UploadKind }
   | { status: "generating"; kind: UploadKind }
   | { status: "done"; kind: UploadKind; videoUrl: string | null }
+  | { status: "pending"; kind: UploadKind }
   | { status: "error"; message: string };
 
 interface UploadProgressContextValue {
@@ -79,15 +80,18 @@ export default function UploadProgressProvider({ children }: { children: React.R
       }
 
       if (generation.status === "GENERATING") {
-        setUpload({
-          status: "error",
-          message: "생성이 오래 걸리고 있어요. 완료되면 릴스에서 확인해주세요.",
-        });
+        // Still processing on the backend — this is not a failure, just
+        // slower than our poll window. Let the async job keep running and
+        // tell the user where to find the result once it's done.
+        setUpload({ status: "pending", kind });
         return;
       }
 
       if (generation.status !== "COMPLETED" || !generation.seriesId) {
-        setUpload({ status: "error", message: "숏폼 생성에 실패했습니다. 다시 시도해주세요." });
+        setUpload({
+          status: "error",
+          message: generation.errorMessage ?? "숏폼 생성에 실패했습니다. 다시 시도해주세요.",
+        });
         return;
       }
 
@@ -217,6 +221,27 @@ export default function UploadProgressProvider({ children }: { children: React.R
                   {KIND_WATCH_LABEL[upload.kind]}
                 </a>
               ) : null}
+              <button
+                type="button"
+                className={styles.close}
+                onClick={dismiss}
+                aria-label="닫기"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="m18 6-12 12M6 6l12 12" />
+                </svg>
+              </button>
+            </>
+          )}
+
+          {upload.status === "pending" && (
+            <>
+              <div className={styles.spinner} />
+              <div className={styles.body}>
+                <p className={styles.text}>
+                  {KIND_SUBJECT[upload.kind]} 아직 생성 중이에요. 완료되면 릴스에서 확인할 수 있어요.
+                </p>
+              </div>
               <button
                 type="button"
                 className={styles.close}

@@ -32,6 +32,33 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       )
     return true
   }
+
+  if (message?.type === "SLOP_GENERATE_SHORTS") {
+    generateShorts(message.requestedSiteUrl)
+      .then((generation) => sendResponse({ ok: true, generation }))
+      .catch((error) =>
+        sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) })
+      )
+    return true
+  }
+
+  if (message?.type === "SLOP_FETCH_SHORT_GENERATION") {
+    fetchShortGeneration(message.generationId)
+      .then((generation) => sendResponse({ ok: true, generation }))
+      .catch((error) =>
+        sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) })
+      )
+    return true
+  }
+
+  if (message?.type === "SLOP_FETCH_SHORT_SERIES") {
+    fetchShortSeries(message.seriesId)
+      .then((series) => sendResponse({ ok: true, series }))
+      .catch((error) =>
+        sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) })
+      )
+    return true
+  }
 })
 
 export interface TextSummaryCitation {
@@ -85,6 +112,117 @@ async function createTextSummary(
 
   const data = await response.json()
   return data.body as TextSummary
+}
+
+export type ShortGenerationStatus = "GENERATING" | "COMPLETED" | "DISPATCH_FAILED" | "FAILED"
+
+export interface ShortGeneration {
+  id: string
+  status: ShortGenerationStatus
+  seriesId: string | null
+  errorMessage: string | null
+}
+
+export interface ShortSeries {
+  id: string
+  title: string
+  shorts: { id: string; title: string; tags: string[]; videoFileUrl: string }[]
+}
+
+async function generateShorts(requestedSiteUrl: unknown): Promise<ShortGeneration> {
+  if (typeof requestedSiteUrl !== "string" || requestedSiteUrl.length === 0) {
+    throw new Error("Invalid requestedSiteUrl payload")
+  }
+
+  const tokens = await getStoredTokens()
+  if (!tokens) {
+    throw new Error("로그인이 필요합니다.")
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/shorts/generate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${tokens.accessToken}`
+    },
+    // The backend requires at least one of content/links/attachments —
+    // requestedSiteUrl alone doesn't satisfy that, so also pass the site URL
+    // as a link.
+    body: JSON.stringify({ content: null, links: [requestedSiteUrl], attachments: [], requestedSiteUrl })
+  })
+
+  if (response.status === 401) {
+    await new Promise<void>((resolve) =>
+      chrome.storage.local.remove(["slopAccessToken", "slopRefreshToken"], () => resolve())
+    )
+    throw new Error("로그인이 만료됐어요. 다시 로그인해주세요.")
+  }
+
+  if (!response.ok) {
+    throw new Error(await describeErrorResponse(response, "쇼츠 생성 요청 실패"))
+  }
+
+  const data = await response.json()
+  return data.body as ShortGeneration
+}
+
+// The backend returns validation failures as { errors: [{ message, path }] }
+// rather than a plain message, so surface that detail instead of just the
+// status code when we can.
+async function describeErrorResponse(response: Response, fallbackLabel: string): Promise<string> {
+  try {
+    const data = await response.json()
+    const detail = Array.isArray(data?.errors)
+      ? data.errors.map((e: { message?: string }) => e?.message).filter(Boolean).join(", ")
+      : null
+    return detail ? `${fallbackLabel}: ${detail}` : `${fallbackLabel} (${response.status})`
+  } catch {
+    return `${fallbackLabel} (${response.status})`
+  }
+}
+
+async function fetchShortGeneration(generationId: unknown): Promise<ShortGeneration> {
+  if (typeof generationId !== "string" || generationId.length === 0) {
+    throw new Error("Invalid generationId payload")
+  }
+
+  const tokens = await getStoredTokens()
+  if (!tokens) {
+    throw new Error("로그인이 필요합니다.")
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/shorts/generations/${generationId}`, {
+    headers: { Authorization: `Bearer ${tokens.accessToken}` }
+  })
+
+  if (!response.ok) {
+    throw new Error(await describeErrorResponse(response, "쇼츠 생성 상태 조회 실패"))
+  }
+
+  const data = await response.json()
+  return data.body as ShortGeneration
+}
+
+async function fetchShortSeries(seriesId: unknown): Promise<ShortSeries> {
+  if (typeof seriesId !== "string" || seriesId.length === 0) {
+    throw new Error("Invalid seriesId payload")
+  }
+
+  const tokens = await getStoredTokens()
+  if (!tokens) {
+    throw new Error("로그인이 필요합니다.")
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/shorts/series/${seriesId}`, {
+    headers: { Authorization: `Bearer ${tokens.accessToken}` }
+  })
+
+  if (!response.ok) {
+    throw new Error(await describeErrorResponse(response, "쇼츠 시리즈 조회 실패"))
+  }
+
+  const data = await response.json()
+  return data.body as ShortSeries
 }
 
 const INTERPRET_SYSTEM_PROMPT =

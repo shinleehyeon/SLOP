@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react"
 
-const GENERATE_DURATION_MS = 5000
-
 export const SHORTS_PANEL_STYLE = `
   .slop-fb-panel {
     position: fixed;
@@ -347,40 +345,6 @@ export const SHORTS_PANEL_STYLE = `
     background: #e5e7eb;
   }
 
-  .slop-fb-template-grid {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
-
-  .slop-fb-template-card {
-    position: relative;
-    border: none;
-    border-radius: 16px;
-    background-size: cover;
-    background-position: center;
-    cursor: pointer;
-    display: flex;
-    align-items: flex-end;
-    padding: 12px;
-    box-sizing: border-box;
-    outline: 3px solid transparent;
-    outline-offset: -3px;
-    transition: outline-color 0.15s ease;
-  }
-
-  .slop-fb-template-card--active {
-    outline-color: #70eaff;
-  }
-
-  .slop-fb-template-label {
-    color: #ffffff;
-    font-weight: 800;
-    font-size: 14px;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-  }
-
   .slop-fb-generate-view {
     flex: 1;
     display: flex;
@@ -487,24 +451,93 @@ const MAX_SHORTS = 30
 const RESULT_ID = -1
 const RESULT_TAGS = ["#내쇼츠", "#완성"]
 
-const TEMPLATES = [
-  { id: "simple", label: "심플", gradient: "linear-gradient(160deg, #a5d8ff, #91a7ff)" },
-  { id: "dynamic", label: "다이나믹", gradient: "linear-gradient(160deg, #ffd6a5, #fca5a5)" }
-]
+const RESULT_GRADIENT = "linear-gradient(160deg, #a5d8ff, #91a7ff)"
 
 const MOCK_VIDEO_URL = chrome.runtime.getURL("assets/mock-shorts.mp4")
 
-const MOCK_SUMMARY_TEXT =
-  "이 페이지는 iOS 12 업데이트로 새로 생긴 단축어(숏컷) 앱을 소개하고 있어요. 인터넷에 떠도는 여러 정보들을 모아서, 필요한 기능을 등록해두면 반복 작업을 훨씬 빠르게 처리할 수 있다는 내용을 담고 있어요. 지금 이 요약을 바탕으로 쇼츠를 만들고 있어요, 잠시만 기다려주세요."
-
 const GENERATE_CHECK_ITEMS = ["사이트 분석 중", "핵심 내용 요약 중", "쇼츠 영상 생성 중"]
+const CHECKLIST_STEP_MS = 1400
+
+const GENERATION_POLL_MS = 2500
+const GENERATION_MAX_ATTEMPTS = 48 // ~2 minutes at GENERATION_POLL_MS intervals
 
 const HEADER_TEXT = {
   feed: { title: "이건 어떠신가요?", subtitle: "다른 사람이 만든 쇼츠가 있어요" },
-  templates: { title: "템플릿을 선택해주세요", subtitle: "원하는 스타일을 골라주세요" },
   generating: { title: "만드는 중이에요", subtitle: "사이트 내용을 요약하고 있어요" },
-  result: { title: "완성됐어요!", subtitle: "만들어진 쇼츠를 확인해보세요" }
+  result: { title: "완성됐어요!", subtitle: "만들어진 쇼츠를 확인해보세요" },
+  pending: { title: "아직 만들고 있어요", subtitle: "완료되면 다시 확인해주세요" },
+  error: { title: "만들지 못했어요", subtitle: "잠시 후 다시 시도해주세요" }
 } as const
+
+interface ShortGeneration {
+  id: string
+  status: "GENERATING" | "COMPLETED" | "DISPATCH_FAILED" | "FAILED"
+  seriesId: string | null
+  errorMessage: string | null
+}
+
+interface ShortSeries {
+  id: string
+  title: string
+  shorts: { id: string; title: string; tags: string[]; videoFileUrl: string }[]
+}
+
+function requestShortsGeneration(requestedSiteUrl: string): Promise<ShortGeneration> {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(
+      { type: "SLOP_GENERATE_SHORTS", requestedSiteUrl },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message))
+          return
+        }
+        if (!response?.ok) {
+          reject(new Error(response?.error ?? "쇼츠 생성 요청에 실패했어요"))
+          return
+        }
+        resolve(response.generation)
+      }
+    )
+  })
+}
+
+function fetchShortGenerationStatus(generationId: string): Promise<ShortGeneration> {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(
+      { type: "SLOP_FETCH_SHORT_GENERATION", generationId },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message))
+          return
+        }
+        if (!response?.ok) {
+          reject(new Error(response?.error ?? "생성 상태 조회에 실패했어요"))
+          return
+        }
+        resolve(response.generation)
+      }
+    )
+  })
+}
+
+function fetchGeneratedShortSeries(seriesId: string): Promise<ShortSeries> {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(
+      { type: "SLOP_FETCH_SHORT_SERIES", seriesId },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message))
+          return
+        }
+        if (!response?.ok) {
+          reject(new Error(response?.error ?? "쇼츠 조회에 실패했어요"))
+          return
+        }
+        resolve(response.series)
+      }
+    )
+  })
+}
 
 // Shorts/Reels-style vertical video ratio (width:height = 9:16).
 const SHORTS_RATIO = 9 / 16
@@ -514,7 +547,6 @@ const MAX_PANEL_WIDTH = 480
 const MIN_PANEL_HEIGHT = MIN_PANEL_WIDTH / SHORTS_RATIO
 const MAX_PANEL_HEIGHT = MAX_PANEL_WIDTH / SHORTS_RATIO
 const DEFAULT_PANEL_SIZE = { width: 360, height: 360 / SHORTS_RATIO }
-const TEMPLATE_VIEW_HEIGHT = 340
 const GENERATE_VIEW_HEIGHT = 460
 
 function clamp(value: number, min: number, max: number) {
@@ -647,11 +679,12 @@ interface ShortsPanelProps {
 }
 
 function ShortsPanel({ onClose }: ShortsPanelProps) {
-  const [view, setView] = useState<"feed" | "templates" | "generating" | "result">("feed")
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
-  const generateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [view, setView] = useState<"feed" | "generating" | "result" | "pending" | "error">("feed")
   const generateStepTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([])
   const [generateStep, setGenerateStep] = useState(0)
+  const [resultVideoUrl, setResultVideoUrl] = useState<string | null>(null)
+  const [resultTags, setResultTags] = useState<string[]>(RESULT_TAGS)
+  const [generationError, setGenerationError] = useState<string | null>(null)
   const [shorts, setShorts] = useState(() => createShortsBatch(0, 5))
   const [fullscreenId, setFullscreenId] = useState<number | null>(null)
   const [panelSize, setPanelSize] = useState(DEFAULT_PANEL_SIZE)
@@ -684,7 +717,6 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
 
   useEffect(() => {
     return () => {
-      if (generateTimeoutRef.current) clearTimeout(generateTimeoutRef.current)
       generateStepTimeoutsRef.current.forEach(clearTimeout)
     }
   }, [])
@@ -839,12 +871,61 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
   }
 
   const getFullscreenGradient = (id: number) =>
-    id === RESULT_ID
-      ? TEMPLATES.find((t) => t.id === selectedTemplate)?.gradient
-      : shorts.find((item) => item.id === id)?.gradient
+    id === RESULT_ID ? RESULT_GRADIENT : shorts.find((item) => item.id === id)?.gradient
+
+  const getFullscreenVideoSrc = (id: number) =>
+    id === RESULT_ID ? resultVideoUrl ?? MOCK_VIDEO_URL : MOCK_VIDEO_URL
 
   const getFullscreenTags = (id: number) =>
-    id === RESULT_ID ? RESULT_TAGS : shorts.find((item) => item.id === id)?.tags
+    id === RESULT_ID ? resultTags : shorts.find((item) => item.id === id)?.tags
+
+  const startGeneration = async () => {
+    setView("generating")
+    setGenerationError(null)
+    setGenerateStep(0)
+    generateStepTimeoutsRef.current.forEach(clearTimeout)
+    generateStepTimeoutsRef.current = GENERATE_CHECK_ITEMS.map((_, i) =>
+      setTimeout(() => setGenerateStep((step) => Math.max(step, i + 1)), CHECKLIST_STEP_MS * (i + 1))
+    )
+
+    try {
+      let generation = await requestShortsGeneration(window.location.href)
+      let attempts = 0
+      while (generation.status === "GENERATING" && attempts < GENERATION_MAX_ATTEMPTS) {
+        await new Promise((resolve) => setTimeout(resolve, GENERATION_POLL_MS))
+        generation = await fetchShortGenerationStatus(generation.id)
+        attempts += 1
+      }
+
+      if (generation.status === "GENERATING") {
+        // Still processing on the backend — not a failure, just slower than
+        // our poll window. Let it keep running instead of reporting failure.
+        setView("pending")
+        return
+      }
+
+      if (generation.status !== "COMPLETED" || !generation.seriesId) {
+        setGenerationError(generation.errorMessage ?? "쇼츠 생성에 실패했어요. 다시 시도해주세요.")
+        setView("error")
+        return
+      }
+
+      const series = await fetchGeneratedShortSeries(generation.seriesId)
+      const first = series.shorts[0]
+      if (!first) {
+        setGenerationError("생성된 쇼츠를 찾을 수 없어요.")
+        setView("error")
+        return
+      }
+
+      setResultVideoUrl(first.videoFileUrl)
+      setResultTags(first.tags.length > 0 ? first.tags : RESULT_TAGS)
+      setView("result")
+    } catch (error) {
+      setGenerationError(error instanceof Error ? error.message : "쇼츠 생성에 실패했어요. 다시 시도해주세요.")
+      setView("error")
+    }
+  }
 
   const closeFullscreen = () => {
     const id = fullscreenId
@@ -954,18 +1035,16 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
         style={{
           width: panelSize.width,
           height:
-            view === "templates"
-              ? Math.min(TEMPLATE_VIEW_HEIGHT, panelSize.height)
-              : view === "generating"
-                ? Math.min(GENERATE_VIEW_HEIGHT, panelSize.height)
-                : panelSize.height
+            view === "generating" || view === "pending" || view === "error"
+              ? Math.min(GENERATE_VIEW_HEIGHT, panelSize.height)
+              : panelSize.height
         }}>
         <div className="slop-fb-resize-edge slop-fb-resize-edge--left" onMouseDown={startResize("left")} />
         <div className="slop-fb-resize-edge slop-fb-resize-edge--top" onMouseDown={startResize("top")} />
         <div className="slop-fb-resize-edge slop-fb-resize-edge--corner" onMouseDown={startResize("corner")} />
         <div className="slop-fb-panel-header">
           <div className="slop-fb-header-left">
-            {view === "templates" && (
+            {(view === "pending" || view === "error") && (
               <button
                 type="button"
                 className="slop-fb-icon-btn"
@@ -983,24 +1062,6 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
             <CloseIcon />
           </button>
         </div>
-        {view === "templates" && (
-          <div className="slop-fb-template-grid">
-            {TEMPLATES.map((template) => (
-              <button
-                key={template.id}
-                type="button"
-                className={
-                  selectedTemplate === template.id
-                    ? "slop-fb-template-card slop-fb-template-card--active"
-                    : "slop-fb-template-card"
-                }
-                onClick={() => setSelectedTemplate(template.id)}
-                style={{ background: template.gradient }}>
-                <span className="slop-fb-template-label">{template.label}</span>
-              </button>
-            ))}
-          </div>
-        )}
         {view === "generating" && (
           <div className="slop-fb-generate-view">
             <div className="slop-fb-generate-spinner" />
@@ -1033,11 +1094,26 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
             </div>
           </div>
         )}
-        {view === "result" && (
+        {view === "pending" && (
+          <div className="slop-fb-generate-view">
+            <div className="slop-fb-generate-spinner" />
+            <p className="slop-fb-generate-title">
+              생각보다 오래 걸리고 있어요.
+              <br />
+              완료되면 릴스에서 확인할 수 있어요.
+            </p>
+          </div>
+        )}
+        {view === "error" && (
+          <div className="slop-fb-generate-view">
+            <p className="slop-fb-generate-title">{generationError ?? "쇼츠 생성에 실패했어요."}</p>
+          </div>
+        )}
+        {view === "result" && resultVideoUrl && (
           <div
             className="slop-fb-shorts-slide"
             style={{
-              background: TEMPLATES.find((t) => t.id === selectedTemplate)?.gradient,
+              background: RESULT_GRADIENT,
               flex: 1,
               height: "auto",
               minHeight: 0
@@ -1045,7 +1121,7 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
             <video
               ref={setVideoRef(RESULT_ID)}
               className="slop-fb-shorts-video"
-              src={MOCK_VIDEO_URL}
+              src={resultVideoUrl}
               loop
               playsInline
               autoPlay
@@ -1095,18 +1171,31 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
             </div>
           </div>
         )}
-        {view === "result" && (
+        {view === "result" && resultVideoUrl && (
           <button
             type="button"
             className="slop-fb-cta-btn slop-fb-cta-btn--secondary"
             onClick={() => {
               if (navigator.share) {
-                navigator.share({ title: "Slop 쇼츠", url: MOCK_VIDEO_URL }).catch(() => {})
+                navigator.share({ title: "Slop 쇼츠", url: resultVideoUrl }).catch(() => {})
               } else {
-                navigator.clipboard.writeText(MOCK_VIDEO_URL).catch(() => {})
+                navigator.clipboard.writeText(resultVideoUrl).catch(() => {})
               }
             }}>
             공유하기
+          </button>
+        )}
+        {view === "pending" && (
+          <button
+            type="button"
+            className="slop-fb-cta-btn slop-fb-cta-btn--secondary"
+            onClick={() => setView("feed")}>
+            피드로 돌아가기
+          </button>
+        )}
+        {view === "error" && (
+          <button type="button" className="slop-fb-cta-btn" onClick={startGeneration}>
+            다시 시도
           </button>
         )}
         {view === "feed" && (
@@ -1173,27 +1262,9 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
           <div ref={sentinelRef} className="slop-fb-sentinel" />
         </div>
         )}
-        {(view === "feed" || view === "templates") && (
-          <button
-            type="button"
-            className="slop-fb-cta-btn"
-            disabled={view === "templates" && !selectedTemplate}
-            onClick={() => {
-              if (view === "feed") {
-                setView("templates")
-                return
-              }
-              setView("generating")
-              setGenerateStep(0)
-              const stepDuration = GENERATE_DURATION_MS / GENERATE_CHECK_ITEMS.length
-              generateStepTimeoutsRef.current = GENERATE_CHECK_ITEMS.map((_, i) =>
-                setTimeout(() => setGenerateStep(i + 1), stepDuration * (i + 1))
-              )
-              generateTimeoutRef.current = setTimeout(() => {
-                setView("result")
-              }, GENERATE_DURATION_MS)
-            }}>
-            {view === "feed" ? "그래도 만들래요" : "이 템플릿으로 만들기"}
+        {view === "feed" && (
+          <button type="button" className="slop-fb-cta-btn" onClick={startGeneration}>
+            그래도 만들래요
           </button>
         )}
       </div>
@@ -1208,7 +1279,7 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
             <video
               ref={fullscreenVideoRef}
               className="slop-fb-shorts-video"
-              src={MOCK_VIDEO_URL}
+              src={getFullscreenVideoSrc(fullscreenId)}
               loop
               playsInline
               autoPlay
