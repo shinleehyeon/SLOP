@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatCount } from "@/lib/reels-data";
 import styles from "./reels.module.css";
 
@@ -31,6 +31,36 @@ export default function ReelCard({
 }: ReelCardProps) {
   const [paused, setPaused] = useState(false);
   const [showBurst, setShowBurst] = useState(false);
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Every reel's <video> used to autoplay unconditionally, so scrolling the
+  // feed left every past reel's audio still running in the background. Only
+  // the one actually snapped into view should play (and be audible).
+  useEffect(() => {
+    const surface = surfaceRef.current;
+    const video = videoRef.current;
+    if (!surface || !video) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+          video.muted = false;
+          video.play().catch(() => {
+            video.muted = true;
+            video.play().catch(() => {});
+          });
+        } else {
+          video.pause();
+          video.muted = true;
+        }
+      },
+      { threshold: [0, 0.6, 1] }
+    );
+
+    observer.observe(surface);
+    return () => observer.disconnect();
+  }, []);
 
   const handleDoubleClick = () => {
     if (!liked) onToggleLike();
@@ -52,11 +82,12 @@ export default function ReelCard({
   return (
     <section className={styles.reel}>
       <div className={styles.reelRow}>
-        <div className={styles.reelSurface} onDoubleClick={handleDoubleClick}>
+        <div className={styles.reelSurface} onDoubleClick={handleDoubleClick} ref={surfaceRef}>
           <video
+            ref={videoRef}
             className={styles.reelVideo}
             src={reel.videoUrl}
-            autoPlay
+            muted
             loop
             playsInline
             onClick={togglePlayback}

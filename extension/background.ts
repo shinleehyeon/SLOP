@@ -59,7 +59,42 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       )
     return true
   }
+
+  if (message?.type === "SLOP_CHECK_SHORT_DUPLICATES") {
+    checkShortDuplicates(message.url)
+      .then((result) => sendResponse({ ok: true, result }))
+      .catch((error) =>
+        sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) })
+      )
+    return true
+  }
+
+  if (message?.type === "SLOP_FETCH_VIDEO_BLOB") {
+    fetchVideoBlob(message.url)
+      .then((blob) => sendResponse({ ok: true, blob }))
+      .catch((error) =>
+        sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) })
+      )
+    return true
+  }
 })
+
+// Backend-hosted short video files can come back as http://127.0.0.1:... —
+// fine when the web app itself runs on http://localhost, but the extension
+// injects <video> into whatever site the user is on (usually https), which
+// the browser blocks as mixed content. A background service worker fetch
+// isn't a page subresource, so it isn't subject to that check — fetch here
+// and hand the content script a Blob it can wrap in an object URL instead.
+async function fetchVideoBlob(url: unknown): Promise<Blob> {
+  if (typeof url !== "string" || url.length === 0) {
+    throw new Error("Invalid url payload")
+  }
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error(`영상을 불러오지 못했어요 (${response.status})`)
+  }
+  return response.blob()
+}
 
 export interface TextSummaryCitation {
   url: string
@@ -223,6 +258,59 @@ async function fetchShortSeries(seriesId: unknown): Promise<ShortSeries> {
 
   const data = await response.json()
   return data.body as ShortSeries
+}
+
+export interface ShortDuplicateMatch {
+  jobId: string
+  matchType: string
+  duplicate: boolean
+  similar: boolean
+  score: number
+  reasons: string[]
+  title: string | null
+  downloadUrl: string | null
+  overlapUrls: string[]
+}
+
+export interface ShortDuplicateCheckResult {
+  duplicate: boolean
+  similar: boolean
+  jobIds: string[]
+  matches: ShortDuplicateMatch[]
+}
+
+async function checkShortDuplicates(url: unknown): Promise<ShortDuplicateCheckResult> {
+  if (typeof url !== "string" || url.length === 0) {
+    throw new Error("Invalid url payload")
+  }
+
+  const tokens = await getStoredTokens()
+  if (!tokens) {
+    throw new Error("로그인이 필요합니다.")
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/shorts/duplicates/check`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${tokens.accessToken}`
+    },
+    body: JSON.stringify({ url })
+  })
+
+  if (response.status === 401) {
+    await new Promise<void>((resolve) =>
+      chrome.storage.local.remove(["slopAccessToken", "slopRefreshToken"], () => resolve())
+    )
+    throw new Error("로그인이 만료됐어요. 다시 로그인해주세요.")
+  }
+
+  if (!response.ok) {
+    throw new Error(await describeErrorResponse(response, "중복 쇼츠 조회 실패"))
+  }
+
+  const data = await response.json()
+  return data.body as ShortDuplicateCheckResult
 }
 
 const INTERPRET_SYSTEM_PROMPT =

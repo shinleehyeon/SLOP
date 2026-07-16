@@ -436,16 +436,6 @@ const SHORTS_GRADIENTS = [
   "linear-gradient(160deg, #ffe066, #ffa94d)"
 ]
 
-const SHORTS_TAGS = [
-  ["#쇼츠", "#추천"],
-  ["#트렌드", "#일상"],
-  ["#챌린지", "#밈"],
-  ["#꿀팁", "#정보"],
-  ["#리뷰", "#후기"]
-]
-
-const MAX_SHORTS = 30
-
 // Sentinel id for the single generated result video, kept out of the range
 // of real `shorts` feed ids so it can share the feed's video ref/state maps.
 const RESULT_ID = -1
@@ -453,13 +443,17 @@ const RESULT_TAGS = ["#내쇼츠", "#완성"]
 
 const RESULT_GRADIENT = "linear-gradient(160deg, #a5d8ff, #91a7ff)"
 
-const MOCK_VIDEO_URL = chrome.runtime.getURL("assets/mock-shorts.mp4")
-
 const GENERATE_CHECK_ITEMS = ["사이트 분석 중", "핵심 내용 요약 중", "쇼츠 영상 생성 중"]
 const CHECKLIST_STEP_MS = 1400
 
 const GENERATION_POLL_MS = 2500
-const GENERATION_MAX_ATTEMPTS = 48 // ~2 minutes at GENERATION_POLL_MS intervals
+// Switch the UI from "generating" to the slower "pending" copy after this
+// many attempts, but keep polling underneath rather than giving up — the
+// panel used to stop checking entirely once it hit this point, so a
+// generation that was still running server-side never made it back to the
+// "result" view even though it completed.
+const GENERATION_SLOW_ATTEMPTS = 24 // ~1 minute at GENERATION_POLL_MS intervals
+const GENERATION_MAX_ATTEMPTS = 240 // ~10 minutes at GENERATION_POLL_MS intervals
 
 const HEADER_TEXT = {
   feed: { title: "이건 어떠신가요?", subtitle: "다른 사람이 만든 쇼츠가 있어요" },
@@ -520,6 +514,41 @@ function fetchShortGenerationStatus(generationId: string): Promise<ShortGenerati
   })
 }
 
+interface DuplicateMatch {
+  jobId: string
+  matchType: string
+  duplicate: boolean
+  similar: boolean
+  score: number
+  reasons: string[]
+  title: string | null
+  downloadUrl: string | null
+  overlapUrls: string[]
+}
+
+interface DuplicateCheckResult {
+  duplicate: boolean
+  similar: boolean
+  jobIds: string[]
+  matches: DuplicateMatch[]
+}
+
+function checkShortDuplicates(url: string): Promise<DuplicateCheckResult> {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage({ type: "SLOP_CHECK_SHORT_DUPLICATES", url }, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message))
+        return
+      }
+      if (!response?.ok) {
+        reject(new Error(response?.error ?? "비슷한 쇼츠 조회에 실패했어요"))
+        return
+      }
+      resolve(response.result)
+    })
+  })
+}
+
 function fetchGeneratedShortSeries(seriesId: string): Promise<ShortSeries> {
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage(
@@ -536,6 +565,27 @@ function fetchGeneratedShortSeries(seriesId: string): Promise<ShortSeries> {
         resolve(response.series)
       }
     )
+  })
+}
+
+// Backend short video URLs can point at http://127.0.0.1:..., which the
+// browser blocks as mixed content once this <video> is injected into an
+// https page. Route the fetch through the background service worker
+// (not a page subresource, so mixed-content rules don't apply) and hand
+// back an object URL the <video> can actually load.
+function fetchVideoObjectUrl(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage({ type: "SLOP_FETCH_VIDEO_BLOB", url }, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message))
+        return
+      }
+      if (!response?.ok) {
+        reject(new Error(response?.error ?? "영상을 불러오지 못했어요"))
+        return
+      }
+      resolve(URL.createObjectURL(response.blob as Blob))
+    })
   })
 }
 
@@ -579,12 +629,20 @@ function sizeFromHeight(height: number, maxViewportWidth: number, maxViewportHei
 
 type ResizeDir = "left" | "top" | "corner"
 
-function createShortsBatch(startId: number, count: number) {
-  return Array.from({ length: count }, (_, i) => ({
-    id: startId + i,
-    gradient: SHORTS_GRADIENTS[(startId + i) % SHORTS_GRADIENTS.length],
-    tags: SHORTS_TAGS[(startId + i) % SHORTS_TAGS.length]
-  }))
+function mapMatchesToShorts(matches: DuplicateMatch[]) {
+  // downloadUrl/title are nullable per the API spec — a match can report a
+  // similarity without an actual playable file, so there's nothing to show
+  // in a video feed for those.
+  return matches
+    .filter((match): match is DuplicateMatch & { downloadUrl: string } => Boolean(match.downloadUrl))
+    .map((match, i) => ({
+      id: i,
+      jobId: match.jobId,
+      videoUrl: match.downloadUrl,
+      title: match.title ?? "제목 없음",
+      gradient: SHORTS_GRADIENTS[i % SHORTS_GRADIENTS.length],
+      tags: match.reasons.length > 0 ? match.reasons.slice(0, 3) : [match.matchType].filter(Boolean)
+    }))
 }
 
 function CloseIcon() {
@@ -685,7 +743,8 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
   const [resultVideoUrl, setResultVideoUrl] = useState<string | null>(null)
   const [resultTags, setResultTags] = useState<string[]>(RESULT_TAGS)
   const [generationError, setGenerationError] = useState<string | null>(null)
-  const [shorts, setShorts] = useState(() => createShortsBatch(0, 5))
+  const [shorts, setShorts] = useState<ReturnType<typeof mapMatchesToShorts>>([])
+  const [feedStatus, setFeedStatus] = useState<"loading" | "ready" | "empty" | "error">("loading")
   const [fullscreenId, setFullscreenId] = useState<number | null>(null)
   const [panelSize, setPanelSize] = useState(DEFAULT_PANEL_SIZE)
   const [isResizing, setIsResizing] = useState(false)
@@ -694,7 +753,7 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
   const [audioState, setAudioState] = useState<Record<number, boolean>>({})
   const [fullscreenMuted, setFullscreenMuted] = useState(false)
   const feedRef = useRef<HTMLDivElement | null>(null)
-  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const objectUrlsRef = useRef<Set<string>>(new Set())
   const videoRefs = useRef<Map<number, HTMLVideoElement>>(new Map())
   const progressFillRefs = useRef<Map<number, HTMLDivElement>>(new Map())
   const slideRefs = useRef<Map<number, HTMLDivElement>>(new Map())
@@ -718,6 +777,7 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
   useEffect(() => {
     return () => {
       generateStepTimeoutsRef.current.forEach(clearTimeout)
+      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
     }
   }, [])
 
@@ -874,7 +934,7 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
     id === RESULT_ID ? RESULT_GRADIENT : shorts.find((item) => item.id === id)?.gradient
 
   const getFullscreenVideoSrc = (id: number) =>
-    id === RESULT_ID ? resultVideoUrl ?? MOCK_VIDEO_URL : MOCK_VIDEO_URL
+    id === RESULT_ID ? resultVideoUrl : shorts.find((item) => item.id === id)?.videoUrl
 
   const getFullscreenTags = (id: number) =>
     id === RESULT_ID ? resultTags : shorts.find((item) => item.id === id)?.tags
@@ -892,14 +952,19 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
       let generation = await requestShortsGeneration(window.location.href)
       let attempts = 0
       while (generation.status === "GENERATING" && attempts < GENERATION_MAX_ATTEMPTS) {
+        if (attempts === GENERATION_SLOW_ATTEMPTS) {
+          // Still processing — switch to the "taking a while" copy but keep
+          // polling in the background instead of stopping here.
+          setView("pending")
+        }
         await new Promise((resolve) => setTimeout(resolve, GENERATION_POLL_MS))
         generation = await fetchShortGenerationStatus(generation.id)
         attempts += 1
       }
 
       if (generation.status === "GENERATING") {
-        // Still processing on the backend — not a failure, just slower than
-        // our poll window. Let it keep running instead of reporting failure.
+        // Gave up polling after GENERATION_MAX_ATTEMPTS — it may still finish
+        // server-side, but the panel won't find out unless reopened.
         setView("pending")
         return
       }
@@ -918,7 +983,13 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
         return
       }
 
-      setResultVideoUrl(first.videoFileUrl)
+      try {
+        const objectUrl = await fetchVideoObjectUrl(first.videoFileUrl)
+        objectUrlsRef.current.add(objectUrl)
+        setResultVideoUrl(objectUrl)
+      } catch {
+        setResultVideoUrl(first.videoFileUrl)
+      }
       setResultTags(first.tags.length > 0 ? first.tags : RESULT_TAGS)
       setView("result")
     } catch (error) {
@@ -975,23 +1046,37 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
     video.muted = fullscreenMuted
   }, [fullscreenId])
 
+  // Populate the "다른 사람이 만든 쇼츠" feed from the real duplicate/similar
+  // shorts check for the current page, instead of mock data.
   useEffect(() => {
-    const feed = feedRef.current
-    const sentinel = sentinelRef.current
-    if (!feed || !sentinel) return
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setShorts((prev) =>
-            prev.length >= MAX_SHORTS ? prev : [...prev, ...createShortsBatch(prev.length, 5)]
-          )
-        }
-      },
-      { root: feed, threshold: 0.1 }
-    )
-    observer.observe(sentinel)
-    return () => observer.disconnect()
+    let cancelled = false
+    setFeedStatus("loading")
+    checkShortDuplicates(window.location.href)
+      .then(async (result) => {
+        const mapped = mapMatchesToShorts(result.matches)
+        const withPlayableUrls = await Promise.all(
+          mapped.map(async (item) => {
+            try {
+              const objectUrl = await fetchVideoObjectUrl(item.videoUrl)
+              objectUrlsRef.current.add(objectUrl)
+              return { ...item, videoUrl: objectUrl }
+            } catch {
+              return item
+            }
+          })
+        )
+        if (cancelled) return
+        setShorts(withPlayableUrls)
+        setFeedStatus(withPlayableUrls.length > 0 ? "ready" : "empty")
+      })
+      .catch(() => {
+        if (cancelled) return
+        setShorts([])
+        setFeedStatus("error")
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   // Only the slide that's actually snapped into view should play — otherwise
@@ -1002,21 +1087,44 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
 
     const observer = new IntersectionObserver(
       (entries) => {
+        // Pick the single most-in-view slide from this batch of entries
+        // rather than reacting to each one independently — with fast
+        // scrolling, several entries can cross the 0.6 threshold in the
+        // same callback, and acting on all of them let more than one
+        // video end up playing at once.
+        let bestId: number | null = null
+        let bestRatio = 0
         for (const entry of entries) {
           if (!entry.isIntersecting || entry.intersectionRatio < 0.6) continue
-          const id = Number(entry.target.getAttribute("data-shorts-id"))
-          if (activeSlideIdRef.current === id) continue
+          if (entry.intersectionRatio > bestRatio) {
+            bestRatio = entry.intersectionRatio
+            bestId = Number(entry.target.getAttribute("data-shorts-id"))
+          }
+        }
 
-          const prevId = activeSlideIdRef.current
-          activeSlideIdRef.current = id
-          if (prevId !== null) videoRefs.current.get(prevId)?.pause()
+        const nextId = bestId ?? activeSlideIdRef.current
+        activeSlideIdRef.current = nextId
 
-          const video = videoRefs.current.get(id)
-          if (video) playVideo(id, video)
+        // Defensively pause AND mute every video that isn't the active one —
+        // not just the previously-tracked one — so no slide can be heard in
+        // the background regardless of how it got there. Muting on top of
+        // pausing means even a stray play() from a timing race stays silent.
+        videoRefs.current.forEach((video, id) => {
+          if (id === nextId) return
+          if (!video.paused) video.pause()
+          video.muted = true
+        })
+
+        if (bestId !== null) {
+          const video = videoRefs.current.get(bestId)
+          if (video) {
+            video.muted = isMuted(bestId)
+            if (video.paused) playVideo(bestId, video)
+          }
           setPausedIds((prev) => {
-            if (!prev.has(id)) return prev
+            if (!prev.has(bestId)) return prev
             const next = new Set(prev)
-            next.delete(id)
+            next.delete(bestId)
             return next
           })
         }
@@ -1198,7 +1306,22 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
             다시 시도
           </button>
         )}
-        {view === "feed" && (
+        {view === "feed" && feedStatus === "loading" && (
+          <div className="slop-fb-generate-view">
+            <div className="slop-fb-generate-spinner" />
+            <p className="slop-fb-generate-waiting">비슷한 쇼츠를 찾고 있어요...</p>
+          </div>
+        )}
+        {view === "feed" && (feedStatus === "empty" || feedStatus === "error") && (
+          <div className="slop-fb-generate-view">
+            <p className="slop-fb-generate-title">
+              {feedStatus === "error"
+                ? "비슷한 쇼츠를 불러오지 못했어요."
+                : "비슷하거나 겹치는 쇼츠가 없어요."}
+            </p>
+          </div>
+        )}
+        {view === "feed" && feedStatus === "ready" && (
         <div className="slop-fb-shorts-feed" ref={feedRef}>
           {shorts.map((item) => (
             <div
@@ -1210,9 +1333,10 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
               <video
                 ref={setVideoRef(item.id)}
                 className="slop-fb-shorts-video"
-                src={MOCK_VIDEO_URL}
+                src={item.videoUrl}
                 loop
                 playsInline
+                muted={item.id !== activeSlideIdRef.current ? true : isMuted(item.id)}
                 onClick={() => togglePlay(item.id)}
                 onTimeUpdate={handleTimeUpdate(item.id)}
               />
@@ -1259,7 +1383,6 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
               </div>
             </div>
           ))}
-          <div ref={sentinelRef} className="slop-fb-sentinel" />
         </div>
         )}
         {view === "feed" && (

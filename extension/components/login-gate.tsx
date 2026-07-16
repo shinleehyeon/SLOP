@@ -87,7 +87,7 @@ interface LoginGateProps {
 
 function LoginGate({ source, onClose }: LoginGateProps) {
   const handleLogin = () => {
-    window.location.href = `${WEB_BASE_URL}/login?source=${source}`
+    window.open(`${WEB_BASE_URL}/login?source=${source}`, "_blank")
   }
 
   return (
