@@ -35,6 +35,25 @@ function FloatingButton() {
 
   useKeepOnTop(buttonRef)
 
+  // Published as a CSS custom property on <html> so the separate
+  // page-interpret content script (its own shadow root) can push its button
+  // out of the way while this one expands on hover — custom properties
+  // inherit across shadow boundaries even though the DOM trees don't share
+  // React state.
+  useEffect(() => {
+    const el = buttonRef.current
+    if (!el) return
+
+    const updateWidth = () => {
+      document.documentElement.style.setProperty("--slop-shorts-width", `${el.offsetWidth}px`)
+    }
+    updateWidth()
+
+    const observer = new ResizeObserver(updateWidth)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
   useEffect(() => {
     const handleStorageChange = (
       changes: { [key: string]: chrome.storage.StorageChange },

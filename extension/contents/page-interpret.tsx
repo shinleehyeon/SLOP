@@ -23,14 +23,16 @@ export const getStyle: PlasmoGetStyle = () => {
     .slop-pi-anchor {
       position: fixed;
       bottom: 24px;
-      right: 76px;
+      /* 24px = Shorts button's own right offset, 12px = gap between the two */
+      right: calc(24px + var(--slop-shorts-width, 40px) + 12px);
       z-index: 2147483647;
+      transition: right 0.28s cubic-bezier(0.32, 0.72, 0, 1);
     }
 
     .slop-pi-toast {
       position: fixed;
       bottom: 76px;
-      right: 76px;
+      right: calc(24px + var(--slop-shorts-width, 40px) + 12px);
       z-index: 2147483647;
       max-width: 260px;
       padding: 10px 14px;
@@ -49,12 +51,18 @@ export const getStyle: PlasmoGetStyle = () => {
 // Injected into the host page (not the shadow root), so this has to be
 // registered separately via a <style> appended to <head>.
 const PAGE_STYLE = `
+  .slop-pi-group {
+    border-left: 2px dotted #9ca3af;
+    padding-left: 14px;
+    margin: 0 0 1.2em;
+  }
+
   .slop-pi-original {
     color: #9ca3af !important;
   }
 
   .slop-pi-rewrite {
-    margin: 0 0 1em;
+    margin: 6px 0 0;
     color: #000000;
     font-size: 1em;
     line-height: 1.6;
@@ -74,14 +82,14 @@ function PageInterpretFeature() {
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const buttonRef = useRef<HTMLButtonElement | null>(null)
-  const grayedElementsRef = useRef<HTMLElement[]>([])
-  const insertedElementsRef = useRef<HTMLElement[]>([])
+  const groupsRef = useRef<{ wrapper: HTMLElement; original: HTMLElement }[]>([])
 
   const cleanup = () => {
-    insertedElementsRef.current.forEach((el) => el.remove())
-    insertedElementsRef.current = []
-    grayedElementsRef.current.forEach((el) => el.classList.remove("slop-pi-original"))
-    grayedElementsRef.current = []
+    groupsRef.current.forEach(({ wrapper, original }) => {
+      original.classList.remove("slop-pi-original")
+      wrapper.replaceWith(original)
+    })
+    groupsRef.current = []
   }
 
   useEffect(() => cleanup, [])
@@ -133,13 +141,18 @@ function PageInterpretFeature() {
         if (!el) return
 
         el.classList.add("slop-pi-original")
-        grayedElementsRef.current.push(el)
 
         const rewriteEl = document.createElement(el.tagName === "P" ? "p" : "div")
         rewriteEl.className = "slop-pi-rewrite"
         rewriteEl.textContent = rewrites[i] ?? ""
-        el.insertAdjacentElement("afterend", rewriteEl)
-        insertedElementsRef.current.push(rewriteEl)
+
+        const wrapper = document.createElement("div")
+        wrapper.className = "slop-pi-group"
+        el.replaceWith(wrapper)
+        wrapper.appendChild(el)
+        wrapper.appendChild(rewriteEl)
+
+        groupsRef.current.push({ wrapper, original: el })
       })
 
       setActive(true)
