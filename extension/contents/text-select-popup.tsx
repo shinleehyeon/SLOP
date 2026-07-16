@@ -151,6 +151,33 @@ export const getStyle: PlasmoGetStyle = () => {
       word-break: keep-all;
     }
 
+    .slop-tsp-action-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .slop-tsp-action-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 12px;
+      border: none;
+      border-radius: 9999px;
+      background: #f5f6f7;
+      color: #4b5563;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .slop-tsp-action-btn:hover {
+      background: #e9ebee;
+      color: #111827;
+    }
+
     @keyframes slop-tsp-shimmer {
       0% { background-position: 100% 0; }
       100% { background-position: -100% 0; }
@@ -254,6 +281,27 @@ function ThumbsDownIcon() {
   )
 }
 
+function CornerDownRightIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+      <polyline
+        points="15 10 20 15 15 20"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M4 4v7a4 4 0 0 0 4 4h12"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 function CloseIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
@@ -288,7 +336,7 @@ function TextSelectPopup() {
   const [feedback, setFeedback] = useState<"up" | "down" | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const cardRef = useRef<HTMLDivElement | null>(null)
-  const prevCardSizeRef = useRef<{ width: number; height: number } | null>(null)
+  const prevCardSizeRef = useRef<{ width: number } | null>(null)
   const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -305,8 +353,9 @@ function TextSelectPopup() {
     return () => chrome.storage.onChanged.removeListener(handleStorageChange)
   }, [])
 
-  // FLIP the card's box size across the loading -> result content swap so it
+  // FLIP the card's width across the loading -> result content swap so it
   // grows into place instead of snapping to the new content's natural size.
+  // Height stays auto so it always fits the current content.
   useLayoutEffect(() => {
     const card = cardRef.current
 
@@ -315,26 +364,21 @@ function TextSelectPopup() {
       return
     }
 
-    const nextSize = {
-      width: card.offsetWidth,
-      height: card.offsetHeight
-    }
+    const nextSize = { width: card.offsetWidth }
     const prevSize = prevCardSizeRef.current
 
     if (prevSize) {
       card.style.transition = "none"
       card.style.width = `${prevSize.width}px`
-      card.style.height = `${prevSize.height}px`
       // Force layout so the browser commits the "from" size before we flip
       // the target size below, otherwise both writes collapse into one.
       void card.offsetHeight
-      card.style.transition = "width 280ms cubic-bezier(0.32, 0.72, 0, 1), height 280ms cubic-bezier(0.32, 0.72, 0, 1)"
+      card.style.transition = "width 280ms cubic-bezier(0.32, 0.72, 0, 1)"
     } else {
       card.style.transition = "none"
     }
 
     card.style.width = `${nextSize.width}px`
-    card.style.height = `${nextSize.height}px`
     prevCardSizeRef.current = nextSize
   }, [phase])
 
@@ -389,6 +433,14 @@ function TextSelectPopup() {
       return
     }
     setPhase("loading")
+    loadingTimeoutRef.current = setTimeout(() => {
+      setPhase("result")
+    }, 1400)
+  }
+
+  const handleRegenerate = () => {
+    setPhase("loading")
+    if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current)
     loadingTimeoutRef.current = setTimeout(() => {
       setPhase("result")
     }, 1400)
@@ -508,6 +560,22 @@ function TextSelectPopup() {
                   </div>
                 </div>
                 <p className="slop-tsp-result-text">{MOCK_RESULT_TEXT}</p>
+                <div className="slop-tsp-action-row">
+                  <button
+                    type="button"
+                    className="slop-tsp-action-btn"
+                    onClick={handleRegenerate}>
+                    <CornerDownRightIcon />
+                    더 쉽게
+                  </button>
+                  <button
+                    type="button"
+                    className="slop-tsp-action-btn"
+                    onClick={handleRegenerate}>
+                    <CornerDownRightIcon />
+                    더 자세하게
+                  </button>
+                </div>
               </div>
             )}
           </div>

@@ -44,24 +44,23 @@ export default function FlashcardModal({
           </button>
         </div>
 
-        <button
-          type="button"
-          className={`${styles.flashcard} ${flipped ? styles.flashcardFlipped : ""}`}
-          onClick={() => setFlipped((prev) => !prev)}
-        >
-          {!flipped ? (
+        <div className={styles.flashcardScene} key={index}>
+          <button
+            type="button"
+            className={`${styles.flashcard} ${flipped ? styles.flashcardFlipped : ""}`}
+            onClick={() => setFlipped((prev) => !prev)}
+          >
             <div className={styles.flashcardFace}>
               <span className={styles.flashcardTag}>{item.field}</span>
               <p className={styles.flashcardText}>{item.text}</p>
               <span className={styles.flashcardHint}>탭해서 뜻 보기</span>
             </div>
-          ) : (
-            <div className={styles.flashcardFace}>
+            <div className={`${styles.flashcardFace} ${styles.flashcardFaceBack}`}>
               <p className={styles.flashcardNote}>{item.note}</p>
               <span className={styles.flashcardSource}>{item.sourceTitle}</span>
             </div>
-          )}
-        </button>
+          </button>
+        </div>
 
         <div className={styles.modalActions}>
           <button

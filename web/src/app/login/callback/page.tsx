@@ -36,6 +36,15 @@ function CallbackContent() {
       .then(({ accessToken, refreshToken }) => {
         sessionStorage.setItem("slop_access_token", accessToken);
         sessionStorage.setItem("slop_refresh_token", refreshToken);
+
+        if (source === "extension") {
+          // Force a real page load so the extension's content script
+          // (which only injects on navigation, not client-side route
+          // changes) can read the tokens from sessionStorage.
+          window.location.assign(`/login/success?source=${source}`);
+          return;
+        }
+
         router.replace(`/login/success?source=${source}`);
       })
       .catch(() => {

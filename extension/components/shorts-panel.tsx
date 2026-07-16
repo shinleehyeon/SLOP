@@ -337,6 +337,16 @@ export const SHORTS_PANEL_STYLE = `
     background: #70eaff;
   }
 
+  .slop-fb-cta-btn--secondary {
+    margin-top: 10px;
+    background: #f0f1f3;
+    color: #374151;
+  }
+
+  .slop-fb-cta-btn--secondary:hover {
+    background: #e5e7eb;
+  }
+
   .slop-fb-template-grid {
     flex: 1;
     display: grid;
@@ -382,34 +392,18 @@ export const SHORTS_PANEL_STYLE = `
     text-align: center;
   }
 
-  .slop-fb-generate-icon-wrap {
-    position: relative;
-    width: 72px;
-    height: 72px;
+  .slop-fb-generate-spinner {
+    width: 56px;
+    height: 56px;
     flex-shrink: 0;
-  }
-
-  .slop-fb-generate-icon-ring {
-    position: absolute;
-    inset: 0;
     border-radius: 9999px;
-    background: conic-gradient(#70eaff 0deg, #e5e7eb 0deg);
-    animation: slop-fb-generate-ring ${GENERATE_DURATION_MS}ms linear forwards;
+    border: 4px solid #e5e7eb;
+    border-top-color: #70eaff;
+    animation: slop-fb-generate-spin 0.9s linear infinite;
   }
 
-  .slop-fb-generate-icon-core {
-    position: absolute;
-    inset: 5px;
-    border-radius: 9999px;
-    background: linear-gradient(160deg, #70eaff, #4d8dfa);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #ffffff;
-  }
-
-  @keyframes slop-fb-generate-ring {
-    to { background: conic-gradient(#70eaff 360deg, #e5e7eb 360deg); }
+  @keyframes slop-fb-generate-spin {
+    to { transform: rotate(360deg); }
   }
 
   .slop-fb-generate-waiting {
@@ -488,6 +482,11 @@ const SHORTS_TAGS = [
 
 const MAX_SHORTS = 30
 
+// Sentinel id for the single generated result video, kept out of the range
+// of real `shorts` feed ids so it can share the feed's video ref/state maps.
+const RESULT_ID = -1
+const RESULT_TAGS = ["#내쇼츠", "#완성"]
+
 const TEMPLATES = [
   { id: "simple", label: "심플", gradient: "linear-gradient(160deg, #a5d8ff, #91a7ff)" },
   { id: "dynamic", label: "다이나믹", gradient: "linear-gradient(160deg, #ffd6a5, #fca5a5)" }
@@ -516,6 +515,7 @@ const MIN_PANEL_HEIGHT = MIN_PANEL_WIDTH / SHORTS_RATIO
 const MAX_PANEL_HEIGHT = MAX_PANEL_WIDTH / SHORTS_RATIO
 const DEFAULT_PANEL_SIZE = { width: 360, height: 360 / SHORTS_RATIO }
 const TEMPLATE_VIEW_HEIGHT = 340
+const GENERATE_VIEW_HEIGHT = 460
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
@@ -649,8 +649,6 @@ interface ShortsPanelProps {
 function ShortsPanel({ onClose }: ShortsPanelProps) {
   const [view, setView] = useState<"feed" | "templates" | "generating" | "result">("feed")
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
-  const [resultPaused, setResultPaused] = useState(false)
-  const resultVideoRef = useRef<HTMLVideoElement | null>(null)
   const generateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const generateStepTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([])
   const [generateStep, setGenerateStep] = useState(0)
@@ -840,6 +838,14 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
     else slideRefs.current.delete(id)
   }
 
+  const getFullscreenGradient = (id: number) =>
+    id === RESULT_ID
+      ? TEMPLATES.find((t) => t.id === selectedTemplate)?.gradient
+      : shorts.find((item) => item.id === id)?.gradient
+
+  const getFullscreenTags = (id: number) =>
+    id === RESULT_ID ? RESULT_TAGS : shorts.find((item) => item.id === id)?.tags
+
   const closeFullscreen = () => {
     const id = fullscreenId
     const fsVideo = fullscreenVideoRef.current
@@ -948,9 +954,11 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
         style={{
           width: panelSize.width,
           height:
-            view === "templates" || view === "generating"
+            view === "templates"
               ? Math.min(TEMPLATE_VIEW_HEIGHT, panelSize.height)
-              : panelSize.height
+              : view === "generating"
+                ? Math.min(GENERATE_VIEW_HEIGHT, panelSize.height)
+                : panelSize.height
         }}>
         <div className="slop-fb-resize-edge slop-fb-resize-edge--left" onMouseDown={startResize("left")} />
         <div className="slop-fb-resize-edge slop-fb-resize-edge--top" onMouseDown={startResize("top")} />
@@ -995,12 +1003,7 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
         )}
         {view === "generating" && (
           <div className="slop-fb-generate-view">
-            <div className="slop-fb-generate-icon-wrap">
-              <div className="slop-fb-generate-icon-ring" />
-              <div className="slop-fb-generate-icon-core">
-                <ExpandIcon />
-              </div>
-            </div>
+            <div className="slop-fb-generate-spinner" />
             <p className="slop-fb-generate-waiting">잠시만 기다려주세요...</p>
             <p className="slop-fb-generate-title">
               사이트 내용을 분석해서
@@ -1040,31 +1043,71 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
               minHeight: 0
             }}>
             <video
-              ref={resultVideoRef}
+              ref={setVideoRef(RESULT_ID)}
               className="slop-fb-shorts-video"
               src={MOCK_VIDEO_URL}
               loop
               playsInline
               autoPlay
-              onClick={() => {
-                const video = resultVideoRef.current
-                if (!video) return
-                if (video.paused) {
-                  video.play()
-                  setResultPaused(false)
-                } else {
-                  video.pause()
-                  setResultPaused(true)
-                }
-              }}
+              onClick={() => togglePlay(RESULT_ID)}
+              onTimeUpdate={handleTimeUpdate(RESULT_ID)}
             />
             <div className="slop-fb-shorts-vignette" />
-            {resultPaused && (
-              <span className="slop-fb-play-btn">
+            {pausedIds.has(RESULT_ID) && (
+              <span className="slop-fb-play-btn" onClick={() => togglePlay(RESULT_ID)}>
                 <PlayIcon />
               </span>
             )}
+            <button
+              type="button"
+              className="slop-fb-fullscreen-btn"
+              onClick={() => {
+                const resultVideo = videoRefs.current.get(RESULT_ID)
+                fullscreenStartTimeRef.current = resultVideo?.currentTime ?? 0
+                resultVideo?.pause()
+                setFullscreenId(RESULT_ID)
+                setFullscreenPaused(false)
+                setFullscreenMuted(isMuted(RESULT_ID))
+              }}
+              aria-label="전체화면">
+              <ExpandIcon />
+            </button>
+            <div className="slop-fb-slide-overlay">
+              <div className="slop-fb-tag-row">
+                {RESULT_TAGS.map((tag) => (
+                  <span key={tag} className="slop-fb-tag">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+              <div className="slop-fb-volume-row">
+                <button
+                  type="button"
+                  className="slop-fb-mute-btn"
+                  onClick={() => toggleMute(RESULT_ID)}
+                  aria-label="음소거">
+                  <SpeakerIcon muted={isMuted(RESULT_ID)} />
+                </button>
+              </div>
+              <div className="slop-fb-progress-track" onMouseDown={handleSeekMouseDown(RESULT_ID)}>
+                <div className="slop-fb-progress-fill" ref={setProgressFillRef(RESULT_ID)} />
+              </div>
+            </div>
           </div>
+        )}
+        {view === "result" && (
+          <button
+            type="button"
+            className="slop-fb-cta-btn slop-fb-cta-btn--secondary"
+            onClick={() => {
+              if (navigator.share) {
+                navigator.share({ title: "Slop 쇼츠", url: MOCK_VIDEO_URL }).catch(() => {})
+              } else {
+                navigator.clipboard.writeText(MOCK_VIDEO_URL).catch(() => {})
+              }
+            }}>
+            공유하기
+          </button>
         )}
         {view === "feed" && (
         <div className="slop-fb-shorts-feed" ref={feedRef}>
@@ -1159,7 +1202,7 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
           <div
             className="slop-fb-fullscreen-card"
             style={{
-              background: shorts.find((item) => item.id === fullscreenId)?.gradient
+              background: getFullscreenGradient(fullscreenId)
             }}
             onClick={(e) => e.stopPropagation()}>
             <video
@@ -1190,13 +1233,11 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
             )}
             <div className="slop-fb-slide-overlay">
               <div className="slop-fb-tag-row">
-                {shorts
-                  .find((item) => item.id === fullscreenId)
-                  ?.tags.map((tag) => (
-                    <span key={tag} className="slop-fb-tag">
-                      {tag}
-                    </span>
-                  ))}
+                {getFullscreenTags(fullscreenId)?.map((tag) => (
+                  <span key={tag} className="slop-fb-tag">
+                    {tag}
+                  </span>
+                ))}
               </div>
               <div className="slop-fb-volume-row">
                 <button

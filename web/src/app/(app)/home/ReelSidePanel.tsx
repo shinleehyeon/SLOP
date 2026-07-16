@@ -8,7 +8,7 @@ export default function ReelSidePanel({
   field: string;
   reels: Reel[];
 }) {
-  const [primary, ...rest] = reels;
+  const [primary] = reels;
 
   return (
     <aside className={styles.sidePanel}>
@@ -41,18 +41,6 @@ export default function ReelSidePanel({
               좋아요 {formatCount(primary.likes)} · 공유 {formatCount(primary.shares)}
             </span>
           </div>
-
-          {rest.length > 0 && (
-            <div className={styles.sideReelMore}>
-              {rest.map((reel) => (
-                <span
-                  key={reel.id}
-                  className={styles.sideReelMoreThumb}
-                  style={{ background: reel.gradient }}
-                />
-              ))}
-            </div>
-          )}
         </>
       )}
     </aside>

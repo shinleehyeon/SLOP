@@ -1,24 +1,16 @@
 .page {
   min-height: 100%;
-  background: #ffffff;
+  background: #f3f4f6;
   font-family: var(--font-geist-sans), -apple-system, sans-serif;
 }
 
 .inner {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   max-width: 1180px;
   margin: 0 auto;
-  padding: 40px 24px 80px;
-}
-
-.pageGrid {
-  display: flex;
-  align-items: flex-start;
-  gap: 32px;
-}
-
-.mainCol {
-  flex: 1;
-  min-width: 0;
+  padding: 32px 24px 80px;
 }
 
 /* --- Hero --- */
@@ -61,9 +53,36 @@
   color: #111827;
 }
 
-/* --- Sections --- */
-.section {
-  margin-top: 44px;
+/* --- Card sections --- */
+.topCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+  padding: 28px;
+  border: 1px solid #ececef;
+  border-radius: 28px;
+  background: #ffffff;
+}
+
+.topCardLeft {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bottomGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.panelCard {
+  padding: 24px;
+  border: 1px solid #ececef;
+  border-radius: 28px;
+  background: #ffffff;
 }
 
 .sectionHeader {
@@ -100,18 +119,18 @@
   }
 }
 
-/* --- Item grid (top dragged) --- */
-.itemGrid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
+/* --- Item list (top dragged), event-row style --- */
+.itemList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .itemCard {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 18px;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
   border: 1.5px solid #ececef;
   border-radius: 16px;
   transition: border-color 0.15s ease;
@@ -123,71 +142,69 @@
   }
 }
 
-.itemCardSelected {
-  border-color: #22c1e2;
-  background: #f4fcfe;
-}
-
-.itemCardTop {
+.itemBody {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.itemTag {
-  display: inline-flex;
-  padding: 4px 10px;
-  border-radius: 9999px;
-  background: #f4f5f7;
-  font-size: 12px;
-  font-weight: 600;
-  color: #6b7280;
-}
-
-.itemDragBadge {
-  flex-shrink: 0;
-  font-size: 12px;
-  color: #9ca3af;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .itemText {
-  font-size: 17px;
+  overflow: hidden;
+  font-size: 15px;
   font-weight: 700;
   color: #111827;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .itemNote {
-  font-size: 13.5px;
+  overflow: hidden;
+  font-size: 13px;
   line-height: 1.5;
   color: #374151;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.itemSource {
+.itemMeta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.itemMetaRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
   font-size: 12px;
   color: #9ca3af;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .itemActions {
   display: flex;
+  flex-shrink: 0;
   gap: 8px;
-  margin-top: 10px;
 }
 
 .itemActionButton {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 1;
-  height: 36px;
+  height: 32px;
+  padding: 0 12px;
   border: none;
-  border-radius: 10px;
+  border-radius: 9999px;
   background: #f4f5f7;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   color: #111827;
   cursor: pointer;
-  text-align: center;
+  white-space: nowrap;
   transition: background-color 0.15s ease;
 }
 
@@ -262,6 +279,51 @@
   color: #9ca3af;
 }
 
+/* --- Field stats --- */
+.fieldStatsList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fieldStatRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldStatTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.fieldStatName {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.fieldStatCount {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.fieldStatBarTrack {
+  height: 6px;
+  border-radius: 9999px;
+  background: #f4f5f7;
+  overflow: hidden;
+}
+
+.fieldStatBarFill {
+  height: 100%;
+  border-radius: 9999px;
+  background: #22c1e2;
+}
+
 /* --- Flashcard modal --- */
 .modalBackdrop {
   position: fixed;
@@ -332,31 +394,70 @@
   cursor: pointer;
 }
 
-.flashcard {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.flashcardScene {
   width: 100%;
   min-height: 220px;
   margin-top: 20px;
+  perspective: 1400px;
+  animation: cardIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateX(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.flashcard {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+  border: none;
+  border-radius: 18px;
+  background: transparent;
+  cursor: pointer;
+  text-align: center;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.flashcard:active {
+  transform: scale(0.98);
+}
+
+.flashcardFlipped {
+  transform: rotateY(180deg);
+}
+
+.flashcardFlipped:active {
+  transform: rotateY(180deg) scale(0.98);
+}
+
+.flashcardFace {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   padding: 28px;
   border: 1.5px solid #ececef;
   border-radius: 18px;
   background: #ffffff;
-  cursor: pointer;
-  text-align: center;
-  transition: border-color 0.15s ease;
+  backface-visibility: hidden;
 }
 
-.flashcardFlipped {
+.flashcardFaceBack {
   background: #f4f5f7;
-}
-
-.flashcardFace {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
+  transform: rotateY(180deg);
 }
 
 .flashcardTag {
@@ -436,12 +537,12 @@
 
 /* --- Reel side panel --- */
 .sidePanel {
-  position: sticky;
-  top: 24px;
   display: flex;
   flex-direction: column;
-  width: 280px;
+  width: 260px;
   flex-shrink: 0;
+  padding-left: 28px;
+  border-left: 1px solid #ececef;
 }
 
 .sidePanelLabel {
@@ -511,26 +612,21 @@
   color: #9ca3af;
 }
 
-.sideReelMore {
-  display: flex;
-  gap: 6px;
-  margin-top: 12px;
-}
-
-.sideReelMoreThumb {
-  flex: 1;
-  aspect-ratio: 9 / 16;
-  border-radius: 8px;
-}
-
 @media (max-width: 900px) {
-  .pageGrid {
+  .topCard {
     flex-direction: column;
   }
 
+  .bottomGrid {
+    grid-template-columns: 1fr;
+  }
+
   .sidePanel {
-    position: static;
     width: 100%;
+    padding-left: 0;
+    border-left: none;
+    border-top: 1px solid #ececef;
+    padding-top: 20px;
   }
 
   .sideReelSurface {
@@ -539,8 +635,7 @@
 }
 
 @media (max-width: 640px) {
-  .statsRow,
-  .itemGrid {
-    grid-template-columns: 1fr;
+  .itemActions {
+    flex-direction: column;
   }
 }

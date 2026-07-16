@@ -112,6 +112,26 @@ export function getRecentItems(limit = 6): CapturedItem[] {
   return [...CAPTURED_ITEMS].sort((a, b) => b.capturedAt - a.capturedAt).slice(0, limit);
 }
 
+export interface FieldStat {
+  field: string;
+  count: number;
+  totalDragCount: number;
+}
+
+export function getFieldStats(): FieldStat[] {
+  const map = new Map<string, FieldStat>();
+  for (const item of CAPTURED_ITEMS) {
+    const existing = map.get(item.field);
+    if (existing) {
+      existing.count += 1;
+      existing.totalDragCount += item.dragCount;
+    } else {
+      map.set(item.field, { field: item.field, count: 1, totalDragCount: item.dragCount });
+    }
+  }
+  return [...map.values()].sort((a, b) => b.totalDragCount - a.totalDragCount);
+}
+
 export function formatRelativeTime(timestamp: number): string {
   const diffDays = Math.floor((Date.now() - timestamp) / DAY);
   if (diffDays <= 0) return "오늘";
