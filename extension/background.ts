@@ -70,8 +70,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message?.type === "SLOP_FETCH_VIDEO_BLOB") {
-    fetchVideoBlob(message.url)
-      .then((blob) => sendResponse({ ok: true, blob }))
+    fetchVideoDataUrl(message.url)
+      .then((dataUrl) => sendResponse({ ok: true, dataUrl }))
+      .catch((error) =>
+        sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) })
+      )
+    return true
+  }
+
+  if (message?.type === "SLOP_FETCH_SHORT_BY_ID") {
+    fetchShortById(message.shortId)
+      .then((short) => sendResponse({ ok: true, short }))
       .catch((error) =>
         sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) })
       )
@@ -83,9 +92,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 // fine when the web app itself runs on http://localhost, but the extension
 // injects <video> into whatever site the user is on (usually https), which
 // the browser blocks as mixed content. A background service worker fetch
-// isn't a page subresource, so it isn't subject to that check — fetch here
-// and hand the content script a Blob it can wrap in an object URL instead.
-async function fetchVideoBlob(url: unknown): Promise<Blob> {
+// isn't a page subresource, so it isn't subject to that check.
+//
+// Handing the Blob itself back across chrome.runtime.sendMessage looked
+// right but silently produced nothing playable — MV3 service worker message
+// passing doesn't reliably carry Blob payloads. Base64 data URLs are plain
+// strings, so they survive the trip intact; encode here instead.
+async function fetchVideoDataUrl(url: unknown): Promise<string> {
   if (typeof url !== "string" || url.length === 0) {
     throw new Error("Invalid url payload")
   }
@@ -93,7 +106,21 @@ async function fetchVideoBlob(url: unknown): Promise<Blob> {
   if (!response.ok) {
     throw new Error(`영상을 불러오지 못했어요 (${response.status})`)
   }
-  return response.blob()
+  // The file server serves these without a proper video Content-Type (shows
+  // up as generic application/octet-stream), which a <video> element won't
+  // recognize as playable — force it to video/mp4 regardless of what the
+  // response header said.
+  const contentType = response.headers.get("content-type")
+  const mime = contentType?.startsWith("video/") ? contentType : "video/mp4"
+
+  const buffer = await response.arrayBuffer()
+  const bytes = new Uint8Array(buffer)
+  let binary = ""
+  const chunkSize = 0x8000
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
+  }
+  return `data:${mime};base64,${btoa(binary)}`
 }
 
 export interface TextSummaryCitation {
@@ -258,6 +285,59 @@ async function fetchShortSeries(seriesId: unknown): Promise<ShortSeries> {
 
   const data = await response.json()
   return data.body as ShortSeries
+}
+
+export interface ShortListItem {
+  id: string
+  seriesId: string
+  seriesTitle: string
+  episodeNumber: number
+  title: string
+  tags: string[]
+  videoFileUrl: string
+  likeCount: number
+  commentCount: number
+  likedByMe: boolean
+  creatorUserId: string
+  creatorName: string
+  createdAt: string
+}
+
+// There's no GET-by-id endpoint for a single short, so page through the
+// "최신 쇼츠 목록" listing looking for the one we want.
+async function fetchShortById(shortId: unknown): Promise<ShortListItem> {
+  if (typeof shortId !== "string" || shortId.length === 0) {
+    throw new Error("Invalid shortId payload")
+  }
+
+  const tokens = await getStoredTokens()
+  if (!tokens) {
+    throw new Error("로그인이 필요합니다.")
+  }
+
+  const MAX_PAGES = 10
+  for (let page = 1; page <= MAX_PAGES; page += 1) {
+    const url = new URL(`${API_BASE_URL}/api/shorts`)
+    url.searchParams.set("page", String(page))
+    url.searchParams.set("limit", "100")
+
+    const response = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${tokens.accessToken}` }
+    })
+
+    if (!response.ok) {
+      throw new Error(await describeErrorResponse(response, "쇼츠 목록 조회 실패"))
+    }
+
+    const data = await response.json()
+    const items = data.body.items as ShortListItem[]
+    const found = items.find((item) => item.id === shortId)
+    if (found) return found
+
+    if (!data.body.meta?.hasNextPage) break
+  }
+
+  throw new Error("해당 쇼츠를 찾을 수 없어요.")
 }
 
 export interface ShortDuplicateMatch {

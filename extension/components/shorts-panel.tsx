@@ -443,6 +443,11 @@ const RESULT_TAGS = ["#내쇼츠", "#완성"]
 
 const RESULT_GRADIENT = "linear-gradient(160deg, #a5d8ff, #91a7ff)"
 
+// duplicates/check's downloadUrl currently points at the backend's own
+// 127.0.0.1 file server, which nothing outside that machine can reach — show
+// this known-working real short instead until that's fixed.
+const MOCK_FEED_SHORT_ID = "cmrny1ow7008w01o2iopn4uqf"
+
 const GENERATE_CHECK_ITEMS = ["사이트 분석 중", "핵심 내용 요약 중", "쇼츠 영상 생성 중"]
 const CHECKLIST_STEP_MS = 1400
 
@@ -549,6 +554,29 @@ function checkShortDuplicates(url: string): Promise<DuplicateCheckResult> {
   })
 }
 
+interface ShortListItem {
+  id: string
+  title: string
+  tags: string[]
+  videoFileUrl: string
+}
+
+function fetchShortById(shortId: string): Promise<ShortListItem> {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage({ type: "SLOP_FETCH_SHORT_BY_ID", shortId }, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message))
+        return
+      }
+      if (!response?.ok) {
+        reject(new Error(response?.error ?? "쇼츠 조회에 실패했어요"))
+        return
+      }
+      resolve(response.short)
+    })
+  })
+}
+
 function fetchGeneratedShortSeries(seriesId: string): Promise<ShortSeries> {
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage(
@@ -570,9 +598,10 @@ function fetchGeneratedShortSeries(seriesId: string): Promise<ShortSeries> {
 
 // Backend short video URLs can point at http://127.0.0.1:..., which the
 // browser blocks as mixed content once this <video> is injected into an
-// https page. Route the fetch through the background service worker
-// (not a page subresource, so mixed-content rules don't apply) and hand
-// back an object URL the <video> can actually load.
+// https page. Route the fetch through the background service worker (not a
+// page subresource, so mixed-content rules don't apply) and get back a
+// base64 data URL — a Blob handed back across chrome.runtime.sendMessage
+// looked right but didn't reliably survive MV3 message passing.
 function fetchVideoObjectUrl(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage({ type: "SLOP_FETCH_VIDEO_BLOB", url }, (response) => {
@@ -584,7 +613,7 @@ function fetchVideoObjectUrl(url: string): Promise<string> {
         reject(new Error(response?.error ?? "영상을 불러오지 못했어요"))
         return
       }
-      resolve(URL.createObjectURL(response.blob as Blob))
+      resolve(response.dataUrl as string)
     })
   })
 }
@@ -1046,28 +1075,35 @@ function ShortsPanel({ onClose }: ShortsPanelProps) {
     video.muted = fullscreenMuted
   }, [fullscreenId])
 
-  // Populate the "다른 사람이 만든 쇼츠" feed from the real duplicate/similar
-  // shorts check for the current page, instead of mock data.
+  // Populate the "다른 사람이 만든 쇼츠" feed. duplicates/check's downloadUrl
+  // currently points at the backend's own 127.0.0.1 file server (unreachable
+  // from outside that machine), so show a known-working real short instead
+  // until that's fixed on the backend.
   useEffect(() => {
     let cancelled = false
     setFeedStatus("loading")
-    checkShortDuplicates(window.location.href)
-      .then(async (result) => {
-        const mapped = mapMatchesToShorts(result.matches)
-        const withPlayableUrls = await Promise.all(
-          mapped.map(async (item) => {
-            try {
-              const objectUrl = await fetchVideoObjectUrl(item.videoUrl)
-              objectUrlsRef.current.add(objectUrl)
-              return { ...item, videoUrl: objectUrl }
-            } catch {
-              return item
-            }
-          })
-        )
+    fetchShortById(MOCK_FEED_SHORT_ID)
+      .then(async (short) => {
+        let videoUrl = short.videoFileUrl
+        try {
+          const objectUrl = await fetchVideoObjectUrl(short.videoFileUrl)
+          objectUrlsRef.current.add(objectUrl)
+          videoUrl = objectUrl
+        } catch {
+          // fall back to the raw URL if the background blob fetch fails
+        }
         if (cancelled) return
-        setShorts(withPlayableUrls)
-        setFeedStatus(withPlayableUrls.length > 0 ? "ready" : "empty")
+        setShorts([
+          {
+            id: 0,
+            jobId: short.id,
+            videoUrl,
+            title: short.title,
+            gradient: SHORTS_GRADIENTS[0],
+            tags: short.tags.length > 0 ? short.tags.slice(0, 3) : []
+          }
+        ])
+        setFeedStatus("ready")
       })
       .catch(() => {
         if (cancelled) return
