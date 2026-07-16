@@ -3,6 +3,14 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./onboarding.module.css";
+import {
+  saveOnboardingSettings,
+  type OnboardingDifficulty,
+  type OnboardingDisplayFormat,
+  type OnboardingShortsStyle,
+  type OnboardingTone,
+} from "@/lib/api";
+import { getAccessToken } from "@/lib/auth";
 
 type DifficultyLevel = "easy" | "normal" | "expert";
 
@@ -309,6 +317,33 @@ function genericDifficultyQuestion(field: string): DifficultyQuestion {
 const MAIN_STEP_COUNT = 5;
 const STORAGE_KEY = "slop_onboarding_preferences";
 
+const TONE_TO_API: Record<string, OnboardingTone> = {
+  casual: "CASUAL",
+  polite: "POLITE",
+  anchor: "NEWS",
+};
+
+const FORMAT_TO_API: Record<string, OnboardingDisplayFormat> = {
+  sentence: "SENTENCE",
+  keyword: "KEYWORD_LIST",
+  qna: "QNA",
+};
+
+// The API only has two shortsStyle buckets, so the four onboarding options
+// collapse into them: hook/impact read as "fun", data/story read as "info".
+const STYLE_TO_API: Record<string, OnboardingShortsStyle> = {
+  hook: "FUN",
+  impact: "FUN",
+  data: "INFO",
+  story: "INFO",
+};
+
+const DIFFICULTY_TO_API: Record<DifficultyLevel, OnboardingDifficulty> = {
+  easy: "EASY",
+  normal: "MEDIUM",
+  expert: "HARD",
+};
+
 export default function OnboardingPage() {
   const router = useRouter();
 
@@ -327,6 +362,9 @@ export default function OnboardingPage() {
   const [difficultyAnswers, setDifficultyAnswers] = useState<
     Record<number, DifficultyLevel>
   >({});
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const allFields = useMemo(
     () => [...selectedFields, ...customFields],
@@ -375,7 +413,7 @@ export default function OnboardingPage() {
     setCustomFields((prev) => prev.filter((f) => f !== name));
   };
 
-  const finish = (finalAnswers: Record<number, DifficultyLevel>) => {
+  const finish = async (finalAnswers: Record<number, DifficultyLevel>) => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
@@ -390,7 +428,38 @@ export default function OnboardingPage() {
         })),
       }),
     );
-    router.replace("/");
+
+    const accessToken = getAccessToken();
+    if (!accessToken) {
+      // No token anywhere (localStorage or sessionStorage) — surface this
+      // instead of silently bouncing to /login, since a quiet redirect
+      // looks identical to "nothing happened" and hides why no request
+      // was ever sent.
+      setSaveError("로그인이 필요합니다. 잠시 후 로그인 화면으로 이동합니다.");
+      setTimeout(() => router.replace("/login"), 1200);
+      return;
+    }
+
+    setSaveError(null);
+    setIsSaving(true);
+    try {
+      await saveOnboardingSettings(
+        {
+          tone: TONE_TO_API[tone as string],
+          displayFormat: FORMAT_TO_API[format as string],
+          shortsStyle: STYLE_TO_API[style as string],
+          fieldChoices: quizQuestions.map((question, index) => ({
+            fieldName: question.field,
+            difficulty: DIFFICULTY_TO_API[finalAnswers[index]],
+          })),
+        },
+        accessToken,
+      );
+      router.replace("/home");
+    } catch {
+      setSaveError("설정을 저장하지 못했습니다. 다시 시도해주세요.");
+      setIsSaving(false);
+    }
   };
 
   const handleBack = () => {
@@ -457,6 +526,7 @@ export default function OnboardingPage() {
   });
 
   const isNextDisabled =
+    isSaving ||
     (mainStep === 0 && !tone) ||
     (mainStep === 1 && !format) ||
     (mainStep === 2 && !style) ||
@@ -744,6 +814,8 @@ export default function OnboardingPage() {
           </>
         )}
 
+        {saveError && <p className={styles.errorText}>{saveError}</p>}
+
         <div className={styles.actions}>
           <button
             type="button"
@@ -751,11 +823,13 @@ export default function OnboardingPage() {
             disabled={isNextDisabled}
             className={`${styles.button} ${styles.primary}`}
           >
-            {mainStep === 3 && noFieldPreference
-              ? "건너뛰기"
-              : mainStep === 4 && quizIndex === quizQuestions.length - 1
-                ? "시작하기"
-                : "다음"}
+            {isSaving
+              ? "저장 중..."
+              : mainStep === 3 && noFieldPreference
+                ? "건너뛰기"
+                : mainStep === 4 && quizIndex === quizQuestions.length - 1
+                  ? "시작하기"
+                  : "다음"}
           </button>
         </div>
       </div>

@@ -6,6 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import styles from "../auth.module.css";
 import { exchangeGoogleLoginCode } from "@/lib/api";
+import { setAuthTokens } from "@/lib/auth";
 
 type Status = "loading" | "error";
 
@@ -34,8 +35,14 @@ function CallbackContent() {
 
     exchangeGoogleLoginCode(code)
       .then(({ accessToken, refreshToken }) => {
+        // sessionStorage: transient handoff read by the extension's
+        // auth-bridge content script on /login/success.
         sessionStorage.setItem("slop_access_token", accessToken);
         sessionStorage.setItem("slop_refresh_token", refreshToken);
+        // localStorage: persistent storage the web app itself uses for
+        // authenticated API calls (e.g. onboarding). Kept separate so the
+        // extension bridge clearing sessionStorage doesn't affect it.
+        setAuthTokens(accessToken, refreshToken);
 
         if (source === "extension") {
           // Force a real page load so the extension's content script

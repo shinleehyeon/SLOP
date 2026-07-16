@@ -199,6 +199,13 @@
   font-weight: 600;
 }
 
+.errorText {
+  margin-top: 16px;
+  font-size: 13px;
+  color: #ef4444;
+  text-align: center;
+}
+
 .actions {
   display: flex;
   gap: 12px;
