@@ -9,8 +9,9 @@ import {
   getUserByUsername,
   formatCount,
 } from "@/lib/reels-data";
-import { fetchMe, type MeUser } from "@/lib/api";
+import { fetchMe, fetchMyShorts, type MeUser, type MyShort } from "@/lib/api";
 import { clearAuthTokens, getAccessToken } from "@/lib/auth";
+import { seekToThumbnailFrame } from "@/lib/video-thumbnail";
 import EditProfileModal from "./EditProfileModal";
 import styles from "./profile.module.css";
 
@@ -28,6 +29,7 @@ export default function ProfilePage({
   const [following, setFollowing] = useState(false);
   const [me, setMe] = useState<MeUser | null>(null);
   const [editing, setEditing] = useState(edit === "1");
+  const [myShorts, setMyShorts] = useState<MyShort[] | null>(null);
 
   const isMe = user?.id === CURRENT_USER_ID;
 
@@ -45,11 +47,20 @@ export default function ProfilePage({
       .catch(() => setMe(null));
   }, [isMe]);
 
+  useEffect(() => {
+    if (!isMe) return;
+    const accessToken = getAccessToken();
+    if (!accessToken) return;
+    fetchMyShorts(accessToken)
+      .then((page) => setMyShorts(page.items))
+      .catch(() => setMyShorts([]));
+  }, [isMe]);
+
   if (!user) {
     notFound();
   }
 
-  const reels = getReelsByUserId(user.id);
+  const mockReels = getReelsByUserId(user.id);
   const displayName = (isMe && me?.name) || user.displayName;
   const avatarImageUrl = isMe ? me?.profileImageUrl : null;
 
@@ -112,10 +123,49 @@ export default function ProfilePage({
               <path d="m10 8 6 4-6 4z" />
             </svg>
             <span>릴스</span>
-            <span className={styles.sectionCount}>{reels.length}</span>
+            <span className={styles.sectionCount}>
+              {isMe ? myShorts?.length ?? 0 : mockReels.length}
+            </span>
           </div>
 
-          {reels.length === 0 ? (
+          {isMe ? (
+            myShorts === null ? null : myShorts.length === 0 ? (
+              <div className={styles.reelsEmpty}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="2" width="20" height="20" rx="5" />
+                  <path d="m10 8 6 4-6 4z" />
+                </svg>
+                <p>아직 제작한 쇼츠가 없어요</p>
+              </div>
+            ) : (
+              <div className={styles.reelsGrid}>
+                {myShorts.map((short) => (
+                  <Link
+                    key={short.id}
+                    href={`/reels?seriesId=${short.seriesId}&start=${short.id}`}
+                    className={styles.reelThumb}
+                  >
+                    <video
+                      className={styles.reelThumbVideo}
+                      src={short.videoFileUrl}
+                      muted
+                      preload="metadata"
+                      playsInline
+                      onLoadedMetadata={seekToThumbnailFrame}
+                    />
+                    <span className={styles.reelThumbOverlay}>
+                      <span className={styles.reelThumbLikes}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+                          <path d="M12 21s-6.7-4.35-9.3-8.28C.9 9.94 1.6 6.4 4.6 5.1c2-.87 4-.2 5.4 1.6 1.4-1.8 3.4-2.47 5.4-1.6 3 1.3 3.7 4.84 1.9 7.62C18.7 16.65 12 21 12 21z" />
+                        </svg>
+                        {formatCount(short.likeCount)}
+                      </span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )
+          ) : mockReels.length === 0 ? (
             <div className={styles.reelsEmpty}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="2" y="2" width="20" height="20" rx="5" />
@@ -125,7 +175,7 @@ export default function ProfilePage({
             </div>
           ) : (
             <div className={styles.reelsGrid}>
-              {reels.map((reel) => (
+              {mockReels.map((reel) => (
                 <Link
                   key={reel.id}
                   href={`/reels?user=${user.username}&start=${reel.id}`}

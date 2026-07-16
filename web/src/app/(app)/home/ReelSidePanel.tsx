@@ -1,4 +1,5 @@
 import type { LearningHomeRelatedShort } from "@/lib/api";
+import { seekToThumbnailFrame } from "@/lib/video-thumbnail";
 import styles from "./home.module.css";
 
 export default function ReelSidePanel({
@@ -31,6 +32,7 @@ export default function ReelSidePanel({
               muted
               preload="metadata"
               playsInline
+              onLoadedMetadata={seekToThumbnailFrame}
             />
             <div className={styles.sideReelPausedIcon} aria-hidden="true">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="white">

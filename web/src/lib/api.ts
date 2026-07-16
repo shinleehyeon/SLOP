@@ -632,3 +632,52 @@ export async function fetchShortSeries(
   const data = await res.json();
   return data.body as ShortSeries;
 }
+
+export interface MyShort {
+  id: string;
+  seriesId: string;
+  seriesTitle: string;
+  episodeNumber: number;
+  title: string;
+  tags: string[];
+  videoFileUrl: string;
+  likeCount: number;
+  commentCount: number;
+  likedByMe: boolean;
+  creatorUserId: string;
+  creatorName: string;
+  createdAt: string;
+}
+
+export interface PaginatedMyShorts {
+  items: MyShort[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
+
+export async function fetchMyShorts(
+  accessToken: string,
+  page = 1,
+  limit = 100,
+): Promise<PaginatedMyShorts> {
+  const url = new URL(`${API_BASE_URL}/api/shorts/me`);
+  url.searchParams.set("page", String(page));
+  url.searchParams.set("limit", String(limit));
+
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch my shorts");
+  }
+
+  const data = await res.json();
+  return data.body as PaginatedMyShorts;
+}

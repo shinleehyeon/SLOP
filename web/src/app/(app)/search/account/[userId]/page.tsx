@@ -8,6 +8,7 @@ import {
   type ShortEpisode,
 } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
+import { seekToThumbnailFrame } from "@/lib/video-thumbnail";
 import styles from "./account.module.css";
 
 interface FeedShort extends ShortEpisode {
@@ -105,6 +106,7 @@ export default function AccountDetailPage({
                     muted
                     preload="metadata"
                     playsInline
+                    onLoadedMetadata={seekToThumbnailFrame}
                   />
                   <span className={styles.reelThumbTitle}>{short.title}</span>
                 </a>

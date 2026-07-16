@@ -10,6 +10,7 @@ import {
   type SearchRecommendedAccount,
 } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
+import { seekToThumbnailFrame } from "@/lib/video-thumbnail";
 import styles from "./search.module.css";
 
 function formatCount(count: number): string {
@@ -196,6 +197,7 @@ export default function SearchPage() {
                         muted
                         preload="metadata"
                         playsInline
+                        onLoadedMetadata={seekToThumbnailFrame}
                       />
                       {short.likeCount !== null && (
                         <span className={styles.reelThumbLikes}>
