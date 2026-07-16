@@ -1,0 +1,227 @@
+.page {
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --btn-primary: #70eaff;
+  --btn-primary-hover: #4de0fa;
+  --btn-secondary: #f4f5f7;
+  --btn-secondary-hover: #eaecef;
+  --border: #ececef;
+
+  min-height: 100%;
+  background: #ffffff;
+  font-family: var(--font-geist-sans), -apple-system, sans-serif;
+}
+
+.inner {
+  max-width: 760px;
+  margin: 0 auto;
+  padding-bottom: 64px;
+}
+
+/* --- Banner + avatar --- */
+.banner {
+  position: relative;
+  height: 160px;
+  margin: 32px 32px 0;
+  border-radius: 20px;
+  opacity: 0.85;
+}
+
+.avatarRing {
+  position: absolute;
+  left: 32px;
+  bottom: -44px;
+  display: flex;
+  padding: 4px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgba(17, 24, 39, 0.12);
+}
+
+.avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+}
+
+/* --- Identity + stats --- */
+.content {
+  padding: 60px 32px 0;
+}
+
+.identityRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.displayName {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text-primary);
+}
+
+.username {
+  margin-top: 2px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.editButton,
+.followButton {
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 9999px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.editButton {
+  background: var(--btn-secondary);
+  color: var(--text-primary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .editButton:hover {
+    background: var(--btn-secondary-hover);
+  }
+}
+
+.followButton {
+  background: var(--btn-primary);
+  color: #111827;
+}
+
+.followButtonActive {
+  background: var(--btn-secondary);
+  color: var(--text-primary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .followButton:hover {
+    background: var(--btn-primary-hover);
+  }
+
+  .followButtonActive:hover {
+    background: var(--btn-secondary-hover);
+  }
+}
+
+.bio {
+  max-width: 520px;
+  margin-top: 16px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--text-primary);
+}
+
+.statsRow {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.statCard {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  padding: 14px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+}
+
+.statValue {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.statLabel {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+/* --- Reels section --- */
+.reelsSection {
+  margin-top: 40px;
+  padding: 0 32px;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sectionCount {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.reelsEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 56px 0;
+  color: var(--text-secondary);
+}
+
+.reelsEmpty p {
+  font-size: 14px;
+}
+
+.reelsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.reelThumb {
+  position: relative;
+  aspect-ratio: 9 / 16;
+  border-radius: 12px;
+  overflow: hidden;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .reelThumb:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(17, 24, 39, 0.14);
+  }
+}
+
+.reelThumbOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 12px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0) 45%);
+}
+
+.reelThumbLikes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}

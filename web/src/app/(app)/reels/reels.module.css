@@ -1,0 +1,385 @@
+.page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  font-family: var(--font-geist-sans), -apple-system, sans-serif;
+}
+
+.container {
+  flex: 1;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+}
+
+.container::-webkit-scrollbar {
+  display: none;
+}
+
+.sentinel {
+  height: 1px;
+}
+
+.reelWrap {
+  height: 100%;
+}
+
+.reel {
+  height: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 24px;
+}
+
+.reelRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+}
+
+.reelSurface {
+  position: relative;
+  height: min(82vh, 780px);
+  max-width: 70vw;
+  aspect-ratio: 9 / 16;
+  border-radius: 20px;
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid #ececef;
+}
+
+.pausedIcon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.85;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
+}
+
+.likeBurst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: burst 0.7s ease-out forwards;
+}
+
+@keyframes burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.15);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* --- Info panel (beside the video, replaces the on-video overlay) --- */
+.infoPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 300px;
+  flex-shrink: 0;
+  height: min-content;
+  padding: 20px;
+  border: 1.5px solid #ececef;
+  border-radius: 16px;
+}
+
+.infoUserRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.infoAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.infoUserText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.infoUsername {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.infoMusic {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.infoCaption {
+  font-size: 14px;
+  line-height: 1.55;
+  color: #111827;
+}
+
+.infoDivider {
+  height: 1px;
+  background: #ececef;
+}
+
+.infoActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 10px;
+  background: #f4f5f7;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .actionButton:hover {
+    background: #eaecef;
+  }
+}
+
+.actionButtonActive {
+  background: rgba(255, 48, 64, 0.1);
+  color: #ff3040;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .actionButtonActive:hover {
+    background: rgba(255, 48, 64, 0.15);
+  }
+}
+
+/* --- Comments modal --- */
+.sheetBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  width: 400px;
+  max-width: 92vw;
+  height: 600px;
+  max-height: 80vh;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+  animation: popIn 0.18s ease-out;
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.sheetHeader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+  flex-shrink: 0;
+}
+
+.sheetClose {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.sheetList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px;
+}
+
+.sheetEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 48px 0;
+  text-align: center;
+}
+
+.sheetEmptyTitle {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.sheetEmptySubtitle {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.sheetComment {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.sheetCommentAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sheetCommentBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sheetCommentMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sheetCommentUser {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.sheetCommentTime {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.sheetCommentText {
+  font-size: 14px;
+  line-height: 1.45;
+  color: #111827;
+}
+
+.sheetForm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  border-top: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.sheetFormAvatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sheetInput {
+  flex: 1;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid #ececef;
+  border-radius: 9999px;
+  background: #f4f5f7;
+  font-size: 14px;
+  font-family: inherit;
+  color: #111827;
+  outline: none;
+}
+
+.sheetInput:focus {
+  border-color: #70eaff;
+}
+
+.sheetSubmit {
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 700;
+  color: #22c1e2;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.sheetSubmit:disabled {
+  color: #c7c9cf;
+  cursor: not-allowed;
+}

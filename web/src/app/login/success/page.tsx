@@ -15,7 +15,7 @@ function SuccessContent() {
   useEffect(() => {
     if (source !== "web") return;
     const timer = setTimeout(() => {
-      router.replace("/");
+      router.replace("/onboarding");
     }, WEB_REDIRECT_DELAY_MS);
     return () => clearTimeout(timer);
   }, [source, router]);
@@ -62,10 +62,10 @@ function SuccessContent() {
           </>
         ) : (
           <>
-            <p className={styles.subtitle}>이제 Slop을 사용해보세요!</p>
+            <p className={styles.subtitle}>취향을 알려주시면 딱 맞는 쇼츠를 만들어드려요</p>
             <p className={styles.hint}>
               <span className={styles.spinner} aria-hidden="true" />
-              홈으로 이동 중...
+              온보딩으로 이동 중...
             </p>
           </>
         )}

@@ -1,0 +1,438 @@
+.page {
+  --bg: #ffffff;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --btn-primary: #70eaff;
+  --btn-primary-hover: #4de0fa;
+  --btn-secondary: #f4f5f7;
+  --btn-secondary-hover: #eaecef;
+  --border: #ececef;
+
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--bg);
+  font-family: var(--font-geist-sans), -apple-system, sans-serif;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 420px;
+}
+
+.backButton {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 9999px;
+  background: var(--btn-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .backButton:hover {
+    background: var(--btn-secondary-hover);
+  }
+}
+
+.progress {
+  display: flex;
+  gap: 6px;
+  margin-top: 56px;
+}
+
+.progressSegment {
+  flex: 1;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--btn-secondary);
+  overflow: hidden;
+}
+
+.progressSegmentFill {
+  height: 100%;
+  width: 0%;
+  border-radius: 9999px;
+  background: var(--btn-primary);
+  transition: width 0.2s ease;
+}
+
+.stepRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.stepRow .step {
+  margin-top: 0;
+}
+
+.step {
+  margin-top: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.title {
+  margin-top: 12px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  margin-top: 8px;
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .option:hover {
+    border-color: var(--btn-primary-hover);
+  }
+}
+
+.optionSelected {
+  border-color: transparent;
+  background: var(--btn-primary);
+}
+
+.optionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.optionLabel {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.optionSelected .optionLabel {
+  color: #111827;
+}
+
+.optionRadio {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--border);
+  border-radius: 9999px;
+  background: #ffffff;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.optionSelected .optionRadio {
+  border-color: #111827;
+  background: #111827;
+}
+
+.optionRadio::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--btn-primary);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.optionSelected .optionRadio::after {
+  opacity: 1;
+}
+
+.optionExample {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.optionSelected .optionExample {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  margin-top: 40px;
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 56px;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.primary {
+  background: var(--btn-primary);
+  color: #111827;
+}
+
+.primary:disabled {
+  background: var(--btn-secondary);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .primary:not(:disabled):hover {
+    background: var(--btn-primary-hover);
+  }
+}
+
+/* --- Field selection (multi-select chips) --- */
+.fieldGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 32px;
+}
+
+.fieldChip {
+  padding: 12px 18px;
+  border: 1.5px solid var(--border);
+  border-radius: 9999px;
+  background: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .fieldChip:hover {
+    border-color: var(--btn-primary-hover);
+  }
+}
+
+.fieldChipSelected {
+  border-color: transparent;
+  background: var(--btn-primary);
+  color: #111827;
+}
+
+.customFieldForm {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.customFieldInput {
+  flex: 1;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: inherit;
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.customFieldInput:focus {
+  border-color: var(--btn-primary-hover);
+  box-shadow: 0 0 0 3px rgba(112, 234, 255, 0.35);
+}
+
+.customFieldAdd {
+  padding: 0 18px;
+  border: none;
+  border-radius: 12px;
+  background: var(--btn-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.customFieldAdd:disabled {
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .customFieldAdd:not(:disabled):hover {
+    background: var(--btn-secondary-hover);
+  }
+}
+
+.customChipList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.customChip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 8px 8px 14px;
+  border-radius: 9999px;
+  background: rgba(112, 234, 255, 0.12);
+  border: 1.5px solid var(--btn-primary);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.customChipRemove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .customChipRemove:hover {
+    background: var(--btn-secondary-hover);
+  }
+}
+
+/* --- Difficulty quiz --- */
+.quizTag {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: var(--btn-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.duoOptions {
+  display: flex;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.duoOption {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 160px;
+  padding: 18px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 18px;
+  background: #ffffff;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .duoOption:hover {
+    border-color: var(--btn-primary-hover);
+  }
+}
+
+.duoOptionSelected {
+  border-color: transparent;
+  background: var(--btn-primary);
+}
+
+.duoOptionWide {
+  width: 100%;
+  min-height: 120px;
+  margin-top: 12px;
+}
+
+.duoOptionLabel {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.duoOptionSelected .duoOptionLabel {
+  color: #111827;
+}
+
+.duoOptionExample {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.duoOptionSelected .duoOptionExample {
+  color: var(--text-primary);
+  font-weight: 600;
+}

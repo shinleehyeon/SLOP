@@ -1,0 +1,75 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { CURRENT_USER_ID, getUserById } from "@/lib/reels-data";
+import styles from "./header.module.css";
+import UploadModal from "./UploadModal";
+
+export default function Header() {
+  const pathname = usePathname();
+  const currentUser = getUserById(CURRENT_USER_ID)!;
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+
+  const isReels = pathname.startsWith("/reels");
+  const isSearch = pathname.startsWith("/search");
+  const isProfile = pathname.startsWith("/profile");
+
+  return (
+    <header className={styles.header}>
+      <Link href="/reels" className={styles.logo}>
+        Slop
+      </Link>
+
+      <nav className={styles.nav}>
+        <Link
+          href="/reels"
+          className={`${styles.navItem} ${isReels ? styles.navItemActive : ""}`}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={isReels ? 2.4 : 2} strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="5" />
+            <path d="m10 8 6 4-6 4z" fill="currentColor" stroke="none" />
+          </svg>
+          <span>릴스</span>
+        </Link>
+
+        <Link
+          href="/search"
+          className={`${styles.navItem} ${isSearch ? styles.navItemActive : ""}`}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={isSearch ? 2.4 : 2} strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <span>검색</span>
+        </Link>
+
+        <button
+          type="button"
+          className={styles.navItem}
+          onClick={() => setIsUploadOpen(true)}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="5" />
+            <path d="M12 8v8M8 12h8" />
+          </svg>
+          <span>업로드</span>
+        </button>
+      </nav>
+
+      <Link
+        href={`/profile/${currentUser.username}`}
+        className={`${styles.profileLink} ${isProfile ? styles.profileLinkActive : ""}`}
+      >
+        <span
+          className={styles.navAvatar}
+          style={{ background: currentUser.avatarGradient }}
+        />
+        <span>프로필</span>
+      </Link>
+
+      <UploadModal open={isUploadOpen} onClose={() => setIsUploadOpen(false)} />
+    </header>
+  );
+}
