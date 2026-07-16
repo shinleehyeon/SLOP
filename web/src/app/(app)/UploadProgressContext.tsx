@@ -40,8 +40,8 @@ interface UploadProgressContextValue {
   startFileUpload: (file: File) => void;
 }
 
-const GENERATION_POLL_MS = 2500;
-const GENERATION_MAX_ATTEMPTS = 48; // ~2 minutes at GENERATION_POLL_MS intervals
+const GENERATION_POLL_MS = 4000;
+const GENERATION_MAX_ATTEMPTS = 150; // ~10 minutes at GENERATION_POLL_MS intervals
 
 const UploadProgressContext = createContext<UploadProgressContextValue | null>(null);
 
@@ -81,7 +81,7 @@ export default function UploadProgressProvider({ children }: { children: React.R
       if (generation.status === "GENERATING") {
         setUpload({
           status: "error",
-          message: "생성에 실패했어요. 잠시 후 다시 확인해주세요.",
+          message: "생성이 오래 걸리고 있어요. 완료되면 릴스에서 확인해주세요.",
         });
         return;
       }

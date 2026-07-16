@@ -568,9 +568,20 @@
   border-radius: 18px;
   overflow: hidden;
   border: 1px solid #ececef;
+  background: #111827;
+}
+
+.sideReelVideo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .sideReelPausedIcon {
+  position: relative;
+  z-index: 1;
   opacity: 0.85;
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
 }
