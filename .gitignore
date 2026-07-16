@@ -1,0 +1,11 @@
+node_modules/
+.pnpm-debug.log*
+.DS_Store
+*.pem
+
+.plasmo/
+build/
+dist/
+out/
+.tsbuildinfo
+.env*.local
