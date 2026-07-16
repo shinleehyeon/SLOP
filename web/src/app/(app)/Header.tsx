@@ -12,6 +12,7 @@ export default function Header() {
   const currentUser = getUserById(CURRENT_USER_ID)!;
   const [isUploadOpen, setIsUploadOpen] = useState(false);
 
+  const isHome = pathname.startsWith("/home");
   const isReels = pathname.startsWith("/reels");
   const isSearch = pathname.startsWith("/search");
   const isProfile = pathname.startsWith("/profile");
@@ -23,6 +24,17 @@ export default function Header() {
       </Link>
 
       <nav className={styles.nav}>
+        <Link
+          href="/home"
+          className={`${styles.navItem} ${isHome ? styles.navItemActive : ""}`}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={isHome ? 2.4 : 2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="m3 11 9-7 9 7" />
+            <path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" />
+          </svg>
+          <span>홈</span>
+        </Link>
+
         <Link
           href="/reels"
           className={`${styles.navItem} ${isReels ? styles.navItemActive : ""}`}

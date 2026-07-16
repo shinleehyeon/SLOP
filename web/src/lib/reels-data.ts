@@ -16,6 +16,7 @@ export interface Reel {
   gradient: string;
   likes: number;
   shares: number;
+  tags: string[];
 }
 
 export interface Comment {
@@ -95,6 +96,7 @@ export const REELS: Reel[] = [
     gradient: GRADIENTS[0],
     likes: 12400,
     shares: 340,
+    tags: ["시사/사회"],
   },
   {
     id: "r2",
@@ -104,6 +106,7 @@ export const REELS: Reel[] = [
     gradient: GRADIENTS[1],
     likes: 8900,
     shares: 210,
+    tags: ["IT/테크"],
   },
   {
     id: "r3",
@@ -113,6 +116,7 @@ export const REELS: Reel[] = [
     gradient: GRADIENTS[2],
     likes: 45210,
     shares: 1290,
+    tags: ["경제/재테크"],
   },
   {
     id: "r4",
@@ -122,6 +126,7 @@ export const REELS: Reel[] = [
     gradient: GRADIENTS[3],
     likes: 30112,
     shares: 890,
+    tags: ["과학"],
   },
   {
     id: "r5",
@@ -131,6 +136,7 @@ export const REELS: Reel[] = [
     gradient: GRADIENTS[4],
     likes: 19800,
     shares: 455,
+    tags: ["시사/사회"],
   },
   {
     id: "r6",
@@ -140,6 +146,7 @@ export const REELS: Reel[] = [
     gradient: GRADIENTS[5],
     likes: 6720,
     shares: 98,
+    tags: ["연예/문화", "IT/테크"],
   },
   {
     id: "r7",
@@ -149,6 +156,7 @@ export const REELS: Reel[] = [
     gradient: GRADIENTS[6],
     likes: 27650,
     shares: 640,
+    tags: ["라이프스타일", "경제/재테크"],
   },
   {
     id: "r8",
@@ -158,8 +166,13 @@ export const REELS: Reel[] = [
     gradient: GRADIENTS[7],
     likes: 11020,
     shares: 176,
+    tags: ["스포츠", "과학"],
   },
 ];
+
+export function getReelsByTag(tag: string): Reel[] {
+  return REELS.filter((r) => r.tags.includes(tag));
+}
 
 export function getUserByUsername(username: string): ReelUser | undefined {
   return USERS.find((u) => u.username === username);

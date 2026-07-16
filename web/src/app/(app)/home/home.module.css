@@ -1,0 +1,546 @@
+.page {
+  min-height: 100%;
+  background: #ffffff;
+  font-family: var(--font-geist-sans), -apple-system, sans-serif;
+}
+
+.inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+.pageGrid {
+  display: flex;
+  align-items: flex-start;
+  gap: 32px;
+}
+
+.mainCol {
+  flex: 1;
+  min-width: 0;
+}
+
+/* --- Hero --- */
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.heroEyebrow {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.heroTitle {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #111827;
+}
+
+.heroSubtitle {
+  margin-top: 2px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+/* --- Stats --- */
+.statsRow {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.statValue {
+  font-weight: 700;
+  color: #111827;
+}
+
+/* --- Sections --- */
+.section {
+  margin-top: 44px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.sectionTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.flashcardStartButton {
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 10px;
+  background: #22c1e2;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .flashcardStartButton:hover {
+    background: #0f9dbd;
+  }
+}
+
+/* --- Item grid (top dragged) --- */
+.itemGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.itemCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+  border: 1.5px solid #ececef;
+  border-radius: 16px;
+  transition: border-color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .itemCard:hover {
+    border-color: #70eaff;
+  }
+}
+
+.itemCardSelected {
+  border-color: #22c1e2;
+  background: #f4fcfe;
+}
+
+.itemCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.itemTag {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: #f4f5f7;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.itemDragBadge {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.itemText {
+  font-size: 17px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.itemNote {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.itemSource {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.itemActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.itemActionButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: #f4f5f7;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .itemActionButton:hover {
+    background: #eaecef;
+  }
+}
+
+.itemActionButtonPrimary {
+  background: #22c1e2;
+  color: #ffffff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .itemActionButtonPrimary:hover {
+    background: #0f9dbd;
+  }
+}
+
+/* --- Recent list --- */
+.recentList {
+  display: flex;
+  flex-direction: column;
+}
+
+.recentRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 8px;
+  border: none;
+  background: none;
+  border-radius: 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .recentRow:hover {
+    background: #f4f5f7;
+  }
+}
+
+.recentRowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.recentRowWord {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.recentRowMeta {
+  font-size: 12.5px;
+  color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recentRowTime {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* --- Flashcard modal --- */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.5);
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modalCard {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 420px;
+  padding: 20px;
+  border-radius: 20px;
+  background: #ffffff;
+  font-family: var(--font-geist-sans), -apple-system, sans-serif;
+  animation: popIn 0.18s ease-out;
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modalCount {
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b7280;
+}
+
+.modalClose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 9999px;
+  background: #f4f5f7;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.flashcard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 220px;
+  margin-top: 20px;
+  padding: 28px;
+  border: 1.5px solid #ececef;
+  border-radius: 18px;
+  background: #ffffff;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s ease;
+}
+
+.flashcardFlipped {
+  background: #f4f5f7;
+}
+
+.flashcardFace {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.flashcardTag {
+  display: inline-flex;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: #e6faff;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f9dbd;
+}
+
+.flashcardText {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: #111827;
+}
+
+.flashcardHint {
+  font-size: 12.5px;
+  color: #9ca3af;
+}
+
+.flashcardNote {
+  font-size: 16px;
+  line-height: 1.6;
+  font-weight: 600;
+  color: #111827;
+}
+
+.flashcardSource {
+  font-size: 12.5px;
+  color: #9ca3af;
+}
+
+.modalActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.modalNavButton {
+  flex: 1;
+  height: 44px;
+  border: none;
+  border-radius: 12px;
+  background: #f4f5f7;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #111827;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.modalNavButton:disabled {
+  color: #c7c9cf;
+  cursor: not-allowed;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .modalNavButton:not(:disabled):hover {
+    background: #eaecef;
+  }
+}
+
+.modalNavButtonPrimary {
+  background: #22c1e2;
+  color: #ffffff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .modalNavButtonPrimary:hover {
+    background: #0f9dbd;
+  }
+}
+
+/* --- Reel side panel --- */
+.sidePanel {
+  position: sticky;
+  top: 24px;
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+  flex-shrink: 0;
+}
+
+.sidePanelLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b7280;
+  margin-bottom: 12px;
+}
+
+.sidePanelEmpty {
+  padding: 24px 0;
+  font-size: 13.5px;
+  color: #9ca3af;
+}
+
+.sideReelSurface {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid #ececef;
+}
+
+.sideReelPausedIcon {
+  opacity: 0.85;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
+}
+
+.sideReelInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.sideReelUserRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sideReelAvatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sideReelUsername {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.sideReelCaption {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.sideReelStats {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.sideReelMore {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.sideReelMoreThumb {
+  flex: 1;
+  aspect-ratio: 9 / 16;
+  border-radius: 8px;
+}
+
+@media (max-width: 900px) {
+  .pageGrid {
+    flex-direction: column;
+  }
+
+  .sidePanel {
+    position: static;
+    width: 100%;
+  }
+
+  .sideReelSurface {
+    max-width: 240px;
+  }
+}
+
+@media (max-width: 640px) {
+  .statsRow,
+  .itemGrid {
+    grid-template-columns: 1fr;
+  }
+}
