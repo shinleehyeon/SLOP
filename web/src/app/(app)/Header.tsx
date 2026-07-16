@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CURRENT_USER_ID, getUserById } from "@/lib/reels-data";
+import { fetchMe, type MeUser } from "@/lib/api";
+import { getAccessToken } from "@/lib/auth";
 import styles from "./header.module.css";
 import UploadModal from "./UploadModal";
 
@@ -11,6 +13,18 @@ export default function Header() {
   const pathname = usePathname();
   const currentUser = getUserById(CURRENT_USER_ID)!;
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [me, setMe] = useState<MeUser | null>(null);
+
+  useEffect(() => {
+    const accessToken = getAccessToken();
+    if (!accessToken) return;
+    fetchMe(accessToken)
+      .then(setMe)
+      .catch(() => setMe(null));
+  }, []);
+
+  const profileLabel = me?.name || "프로필";
+  const profileAvatarUrl = me?.profileImageUrl;
 
   const isHome = pathname.startsWith("/home");
   const isReels = pathname.startsWith("/reels");
@@ -74,11 +88,16 @@ export default function Header() {
         href={`/profile/${currentUser.username}`}
         className={`${styles.profileLink} ${isProfile ? styles.profileLinkActive : ""}`}
       >
-        <span
-          className={styles.navAvatar}
-          style={{ background: currentUser.avatarGradient }}
-        />
-        <span>프로필</span>
+        {profileAvatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className={styles.navAvatar} src={profileAvatarUrl} alt={profileLabel} />
+        ) : (
+          <span
+            className={styles.navAvatar}
+            style={{ background: currentUser.avatarGradient }}
+          />
+        )}
+        <span>{profileLabel}</span>
       </Link>
 
       <UploadModal open={isUploadOpen} onClose={() => setIsUploadOpen(false)} />

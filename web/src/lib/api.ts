@@ -63,3 +63,38 @@ export async function saveOnboardingSettings(
     throw new Error("Failed to save onboarding settings");
   }
 }
+
+export interface OauthAccount {
+  id: string;
+  provider: string;
+  providerAccountId: string;
+  email: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MeUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  profileImageId: string | null;
+  profileImageUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+  oauthAccounts: OauthAccount[];
+  hasPassword: boolean;
+}
+
+export async function fetchMe(accessToken: string): Promise<MeUser> {
+  const res = await fetch(`${API_BASE_URL}/api/users/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch current user");
+  }
+
+  const data = await res.json();
+  return data.body as MeUser;
+}

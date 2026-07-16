@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -9,6 +9,8 @@ import {
   getUserByUsername,
   formatCount,
 } from "@/lib/reels-data";
+import { fetchMe, type MeUser } from "@/lib/api";
+import { getAccessToken } from "@/lib/auth";
 import styles from "./profile.module.css";
 
 export default function ProfilePage({
@@ -19,27 +21,45 @@ export default function ProfilePage({
   const { username } = use(params);
   const user = getUserByUsername(username);
   const [following, setFollowing] = useState(false);
+  const [me, setMe] = useState<MeUser | null>(null);
+
+  const isMe = user?.id === CURRENT_USER_ID;
+
+  useEffect(() => {
+    if (!isMe) return;
+    const accessToken = getAccessToken();
+    if (!accessToken) return;
+    fetchMe(accessToken)
+      .then(setMe)
+      .catch(() => setMe(null));
+  }, [isMe]);
 
   if (!user) {
     notFound();
   }
 
-  const isMe = user.id === CURRENT_USER_ID;
   const reels = getReelsByUserId(user.id);
+  const displayName = (isMe && me?.name) || user.displayName;
+  const avatarImageUrl = isMe ? me?.profileImageUrl : null;
 
   return (
     <div className={styles.page}>
       <div className={styles.inner}>
         <div className={styles.banner} style={{ background: user.avatarGradient }}>
           <span className={styles.avatarRing}>
-            <span className={styles.avatar} style={{ background: user.avatarGradient }} />
+            {avatarImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className={styles.avatar} src={avatarImageUrl} alt={displayName} />
+            ) : (
+              <span className={styles.avatar} style={{ background: user.avatarGradient }} />
+            )}
           </span>
         </div>
 
         <div className={styles.content}>
           <div className={styles.identityRow}>
             <div>
-              <h1 className={styles.displayName}>{user.displayName}</h1>
+              <h1 className={styles.displayName}>{displayName}</h1>
               <p className={styles.username}>@{user.username}</p>
             </div>
 
@@ -59,21 +79,6 @@ export default function ProfilePage({
           </div>
 
           {user.bio && <p className={styles.bio}>{user.bio}</p>}
-
-          <div className={styles.statsRow}>
-            <div className={styles.statCard}>
-              <span className={styles.statValue}>{formatCount(reels.length)}</span>
-              <span className={styles.statLabel}>릴스</span>
-            </div>
-            <div className={styles.statCard}>
-              <span className={styles.statValue}>{formatCount(user.followers)}</span>
-              <span className={styles.statLabel}>팔로워</span>
-            </div>
-            <div className={styles.statCard}>
-              <span className={styles.statValue}>{formatCount(user.following)}</span>
-              <span className={styles.statLabel}>팔로잉</span>
-            </div>
-          </div>
         </div>
 
         <div className={styles.reelsSection}>
@@ -92,7 +97,7 @@ export default function ProfilePage({
                 <rect x="2" y="2" width="20" height="20" rx="5" />
                 <path d="m10 8 6 4-6 4z" />
               </svg>
-              <p>아직 올린 릴스가 없어요</p>
+              <p>아직 제작한 쇼츠가 없어요</p>
             </div>
           ) : (
             <div className={styles.reelsGrid}>
