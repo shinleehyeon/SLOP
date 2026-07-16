@@ -1,4 +1,5 @@
-import { OPENROUTER_API_KEY, OPENROUTER_MODEL } from "~lib/config"
+import { API_BASE_URL, OPENROUTER_API_KEY, OPENROUTER_MODEL } from "~lib/config"
+import { getStoredTokens } from "~lib/auth"
 
 export {}
 
@@ -22,7 +23,69 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       )
     return true
   }
+
+  if (message?.type === "SLOP_CREATE_TEXT_SUMMARY") {
+    createTextSummary(message.text, message.context ?? null)
+      .then((summary) => sendResponse({ ok: true, summary }))
+      .catch((error) =>
+        sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) })
+      )
+    return true
+  }
 })
+
+export interface TextSummaryCitation {
+  url: string
+  title: string
+  snippet: string
+}
+
+export interface TextSummary {
+  originalText: string
+  content: string
+  citations: TextSummaryCitation[]
+  expressionId: string
+}
+
+async function createTextSummary(
+  text: unknown,
+  context: unknown
+): Promise<TextSummary> {
+  if (typeof text !== "string" || text.trim().length === 0) {
+    throw new Error("Invalid text payload")
+  }
+
+  const tokens = await getStoredTokens()
+  if (!tokens) {
+    throw new Error("로그인이 필요합니다.")
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/text-summaries`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${tokens.accessToken}`
+    },
+    body: JSON.stringify({
+      text,
+      context: typeof context === "string" && context.length > 0 ? context : null
+    })
+  })
+
+  if (response.status === 401) {
+    await new Promise<void>((resolve) =>
+      chrome.storage.local.remove(["slopAccessToken", "slopRefreshToken"], () => resolve())
+    )
+    throw new Error("로그인이 만료됐어요. 다시 로그인해주세요.")
+  }
+
+  if (!response.ok) {
+    throw new Error(`텍스트 요약 요청 실패 (${response.status})`)
+  }
+
+  const data = await response.json()
+  return data.body as TextSummary
+}
 
 const INTERPRET_SYSTEM_PROMPT =
   "너는 신문 기사 문단을 더 쉬운 한국어로 풀어써주는 도우미야. " +

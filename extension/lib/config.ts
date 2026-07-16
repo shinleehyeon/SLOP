@@ -1,6 +1,8 @@
 // TODO: replace with the real production web domain once deployed.
 export const WEB_BASE_URL = "http://localhost:3000"
 
+export const API_BASE_URL = "https://api.vport.dev"
+
 // Read from extension/.env (gitignored). Plasmo only inlines env vars
 // prefixed PLASMO_PUBLIC_ into any bundle — background, content scripts, or
 // popup — so despite the name, this isn't actually "public" in the sense of

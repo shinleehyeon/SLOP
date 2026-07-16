@@ -63,6 +63,12 @@ export const getStyle: PlasmoGetStyle = () => {
       justify-content: flex-end;
       gap: 10px;
       margin-bottom: 16px;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .slop-tsp-card-header:active {
+      cursor: grabbing;
     }
 
     .slop-tsp-card-header.slop-tsp-result {
@@ -151,6 +157,29 @@ export const getStyle: PlasmoGetStyle = () => {
       word-break: keep-all;
     }
 
+    .slop-tsp-citation-list {
+      list-style: none;
+      margin: 10px 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .slop-tsp-citation-item a {
+      font-size: 12px;
+      color: #0891b2;
+      text-decoration: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: block;
+    }
+
+    .slop-tsp-citation-item a:hover {
+      text-decoration: underline;
+    }
+
     .slop-tsp-action-row {
       display: flex;
       align-items: center;
@@ -200,10 +229,43 @@ export const getStyle: PlasmoGetStyle = () => {
   return style
 }
 
-const MOCK_RESULT_TEXT =
-  "ios 12 버전으로 업데이트 되면서 단축어 (숏컷) 앱이 새로 생겼다. 인터넷에서 떠도는 정보들을 모아 필요한 기능을 등록 시켜 사용해보려"
-
 const SKELETON_WIDTHS = ["92%", "68%", "80%", "45%"]
+
+interface TextSummaryCitation {
+  url: string
+  title: string
+  snippet: string
+}
+
+interface TextSummaryResult {
+  content: string
+  citations: TextSummaryCitation[]
+}
+
+function requestTextSummary(
+  text: string,
+  context: string | null
+): Promise<TextSummaryResult> {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(
+      { type: "SLOP_CREATE_TEXT_SUMMARY", text, context },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message))
+          return
+        }
+        if (!response?.ok) {
+          reject(new Error(response?.error ?? "요약 요청에 실패했어요"))
+          return
+        }
+        resolve({
+          content: response.summary.content,
+          citations: response.summary.citations ?? []
+        })
+      }
+    )
+  })
+}
 
 function ListIcon() {
   return (
@@ -334,11 +396,18 @@ function TextSelectPopup() {
   const [showShortsPanel, setShowShortsPanel] = useState(false)
   const [copied, setCopied] = useState(false)
   const [feedback, setFeedback] = useState<"up" | "down" | null>(null)
+  const [result, setResult] = useState<TextSummaryResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const cardRef = useRef<HTMLDivElement | null>(null)
   const prevCardSizeRef = useRef<{ width: number } | null>(null)
-  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const selectedTextRef = useRef("")
+  const requestSeqRef = useRef(0)
+  const dragStateRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(
+    null
+  )
 
   useEffect(() => {
     const handleStorageChange = (
@@ -401,6 +470,7 @@ function TextSelectPopup() {
       const text = selection?.toString().trim() ?? ""
 
       if (text.length > 0) {
+        selectedTextRef.current = text
         setPoint({ x: event.clientX + 8, y: event.clientY - 44 })
         setPhase("trigger")
       }
@@ -420,10 +490,31 @@ function TextSelectPopup() {
     return () => {
       document.removeEventListener("mouseup", handleMouseUp, true)
       document.removeEventListener("mousedown", handleMouseDown, true)
-      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current)
       if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current)
     }
   }, [])
+
+  const runSummary = async (context: string | null) => {
+    const seq = ++requestSeqRef.current
+    setPhase("loading")
+    setError(null)
+    try {
+      const summary = await requestTextSummary(selectedTextRef.current, context)
+      if (requestSeqRef.current !== seq) return
+      setResult(summary)
+      setPhase("result")
+    } catch (err) {
+      if (requestSeqRef.current !== seq) return
+      const tokens = await getStoredTokens()
+      if (!tokens) {
+        setPhase("hidden")
+        setShowGate(true)
+        return
+      }
+      setError(err instanceof Error ? err.message : "요약 요청에 실패했어요")
+      setPhase("result")
+    }
+  }
 
   const handleTriggerClick = async () => {
     const tokens = await getStoredTokens()
@@ -432,24 +523,61 @@ function TextSelectPopup() {
       setShowGate(true)
       return
     }
-    setPhase("loading")
-    loadingTimeoutRef.current = setTimeout(() => {
-      setPhase("result")
-    }, 1400)
+    setResult(null)
+    setDragPos(null)
+    runSummary(null)
   }
 
-  const handleRegenerate = () => {
-    setPhase("loading")
-    if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current)
-    loadingTimeoutRef.current = setTimeout(() => {
-      setPhase("result")
-    }, 1400)
+  const handleRegenerate = (context: string) => {
+    runSummary(context)
   }
 
   const handleClose = () => {
-    if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current)
+    requestSeqRef.current++
     window.getSelection()?.removeAllRanges()
     setPhase("hidden")
+    setResult(null)
+    setError(null)
+    setDragPos(null)
+  }
+
+  const handleDragStart = (event: React.PointerEvent<HTMLDivElement>) => {
+    // Ignore drags started on interactive children (buttons, links, svg icons
+    // inside them) so those still get their own click behavior.
+    if ((event.target as HTMLElement).closest("button, a")) return
+
+    const card = cardRef.current
+    if (!card) return
+
+    const rect = card.getBoundingClientRect()
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const handleDragMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragStateRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+
+    const card = cardRef.current
+    const width = card?.offsetWidth ?? 380
+    const height = card?.offsetHeight ?? 260
+    const next = clampPosition(
+      event.clientX - drag.offsetX,
+      event.clientY - drag.offsetY,
+      width,
+      height
+    )
+    setDragPos(next)
+  }
+
+  const handleDragEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (dragStateRef.current?.pointerId === event.pointerId) {
+      dragStateRef.current = null
+    }
   }
 
   const handleShortsClick = async () => {
@@ -462,8 +590,9 @@ function TextSelectPopup() {
   }
 
   const handleCopy = async () => {
+    if (!result) return
     try {
-      await navigator.clipboard.writeText(MOCK_RESULT_TEXT)
+      await navigator.clipboard.writeText(result.content)
     } catch {
       // clipboard access can be blocked on some pages; nothing more to do
     }
@@ -477,7 +606,7 @@ function TextSelectPopup() {
   }
 
   const triggerPos = clampPosition(point.x, point.y, 110, 40)
-  const cardPos = clampPosition(point.x, point.y, 380, 260)
+  const cardPos = dragPos ?? clampPosition(point.x, point.y, 380, 260)
 
   return (
     <>
@@ -499,7 +628,12 @@ function TextSelectPopup() {
           <div ref={cardRef} className="slop-tsp-card" style={{ left: cardPos.x, top: cardPos.y }}>
             {phase === "loading" && (
               <div className="slop-tsp-content-fade">
-                <div className="slop-tsp-card-header">
+                <div
+                  className="slop-tsp-card-header"
+                  onPointerDown={handleDragStart}
+                  onPointerMove={handleDragMove}
+                  onPointerUp={handleDragEnd}
+                  onPointerCancel={handleDragEnd}>
                   <ShortsButton label="Shorts로 만들기" onClick={handleShortsClick} />
                 </div>
                 <div className="slop-tsp-skeleton-wrap">
@@ -516,7 +650,12 @@ function TextSelectPopup() {
 
             {phase === "result" && (
               <div className="slop-tsp-content-fade">
-                <div className="slop-tsp-card-header slop-tsp-result">
+                <div
+                  className="slop-tsp-card-header slop-tsp-result"
+                  onPointerDown={handleDragStart}
+                  onPointerMove={handleDragMove}
+                  onPointerUp={handleDragEnd}
+                  onPointerCancel={handleDragEnd}>
                   <div className="slop-tsp-icon-group">
                     <button
                       type="button"
@@ -559,19 +698,36 @@ function TextSelectPopup() {
                     </button>
                   </div>
                 </div>
-                <p className="slop-tsp-result-text">{MOCK_RESULT_TEXT}</p>
+                {error ? (
+                  <p className="slop-tsp-result-text">{error}</p>
+                ) : (
+                  <>
+                    <p className="slop-tsp-result-text">{result?.content}</p>
+                    {result && result.citations.length > 0 && (
+                      <ul className="slop-tsp-citation-list">
+                        {result.citations.map((citation, i) => (
+                          <li key={i} className="slop-tsp-citation-item">
+                            <a href={citation.url} target="_blank" rel="noreferrer">
+                              {citation.title || citation.url}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                )}
                 <div className="slop-tsp-action-row">
                   <button
                     type="button"
                     className="slop-tsp-action-btn"
-                    onClick={handleRegenerate}>
+                    onClick={() => handleRegenerate("더 쉽게 설명해줘")}>
                     <CornerDownRightIcon />
                     더 쉽게
                   </button>
                   <button
                     type="button"
                     className="slop-tsp-action-btn"
-                    onClick={handleRegenerate}>
+                    onClick={() => handleRegenerate("더 자세하게 설명해줘")}>
                     <CornerDownRightIcon />
                     더 자세하게
                   </button>

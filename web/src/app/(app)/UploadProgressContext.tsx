@@ -81,7 +81,7 @@ export default function UploadProgressProvider({ children }: { children: React.R
       if (generation.status === "GENERATING") {
         setUpload({
           status: "error",
-          message: "생성이 오래 걸리고 있어요. 잠시 후 다시 확인해주세요.",
+          message: "생성에 실패했어요. 잠시 후 다시 확인해주세요.",
         });
         return;
       }
