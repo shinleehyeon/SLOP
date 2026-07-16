@@ -1,14 +1,15 @@
-import { formatCount, getUserById, type Reel } from "@/lib/reels-data";
+import type { LearningHomeRelatedShort } from "@/lib/api";
 import styles from "./home.module.css";
 
 export default function ReelSidePanel({
   field,
-  reels,
+  shorts,
 }: {
   field: string;
-  reels: Reel[];
+  shorts: LearningHomeRelatedShort[];
 }) {
-  const [primary] = reels;
+  const primary =
+    shorts.find((s) => s.tags.includes(field)) ?? shorts[0];
 
   return (
     <aside className={styles.sidePanel}>
@@ -18,28 +19,24 @@ export default function ReelSidePanel({
         <p className={styles.sidePanelEmpty}>관련 릴스가 없어요</p>
       ) : (
         <>
-          <div className={styles.sideReelSurface} style={{ background: primary.gradient }}>
+          <a
+            href={primary.videoUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={styles.sideReelSurface}
+          >
             <div className={styles.sideReelPausedIcon} aria-hidden="true">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="white">
                 <path d="M8 5v14l11-7z" />
               </svg>
             </div>
-          </div>
+          </a>
 
           <div className={styles.sideReelInfo}>
             <div className={styles.sideReelUserRow}>
-              <span
-                className={styles.sideReelAvatar}
-                style={{ background: getUserById(primary.userId)?.avatarGradient }}
-              />
-              <span className={styles.sideReelUsername}>
-                {getUserById(primary.userId)?.username}
-              </span>
+              <span className={styles.sideReelUsername}>{primary.creatorName}</span>
             </div>
-            <p className={styles.sideReelCaption}>{primary.caption}</p>
-            <span className={styles.sideReelStats}>
-              좋아요 {formatCount(primary.likes)} · 공유 {formatCount(primary.shares)}
-            </span>
+            <p className={styles.sideReelCaption}>{primary.title}</p>
           </div>
         </>
       )}

@@ -70,6 +70,32 @@
   color: var(--text-secondary);
 }
 
+.myActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logoutButton {
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 20px;
+  border: 1px solid #ececef;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .logoutButton:hover {
+    background: var(--btn-secondary-hover);
+  }
+}
+
 .editButton,
 .followButton {
   flex-shrink: 0;

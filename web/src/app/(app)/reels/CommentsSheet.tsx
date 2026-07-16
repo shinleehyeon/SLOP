@@ -1,16 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import type { Comment, ReelUser } from "@/lib/reels-data";
-import { getUserById } from "@/lib/reels-data";
 import styles from "./reels.module.css";
+
+export interface UIComment {
+  id: string;
+  text: string;
+  createdAt: number;
+  authorName: string;
+  authorAvatarUrl: string | null;
+  canDelete: boolean;
+}
 
 interface CommentsSheetProps {
   open: boolean;
   onClose: () => void;
-  comments: Comment[];
+  comments: UIComment[];
   onSubmit: (text: string) => void;
-  currentUser: ReelUser;
+  onDelete: (commentId: string) => void;
+  currentUserAvatarGradient: string;
 }
 
 function timeAgo(timestamp: number): string {
@@ -28,7 +36,8 @@ export default function CommentsSheet({
   onClose,
   comments,
   onSubmit,
-  currentUser,
+  onDelete,
+  currentUserAvatarGradient,
 }: CommentsSheetProps) {
   const [text, setText] = useState("");
 
@@ -72,35 +81,47 @@ export default function CommentsSheet({
               <p className={styles.sheetEmptySubtitle}>첫 댓글을 남겨보세요</p>
             </div>
           ) : (
-            comments.map((comment) => {
-              const author = getUserById(comment.userId);
-              return (
-                <div key={comment.id} className={styles.sheetComment}>
-                  <div
+            comments.map((comment) => (
+              <div key={comment.id} className={styles.sheetComment}>
+                {comment.authorAvatarUrl ? (
+                  <img
+                    src={comment.authorAvatarUrl}
+                    alt=""
                     className={styles.sheetCommentAvatar}
-                    style={{ background: author?.avatarGradient }}
                   />
-                  <div className={styles.sheetCommentBody}>
-                    <p className={styles.sheetCommentMeta}>
-                      <span className={styles.sheetCommentUser}>
-                        {author?.username ?? "user"}
-                      </span>
-                      <span className={styles.sheetCommentTime}>
-                        {timeAgo(comment.createdAt)}
-                      </span>
-                    </p>
-                    <p className={styles.sheetCommentText}>{comment.text}</p>
-                  </div>
+                ) : (
+                  <div className={styles.sheetCommentAvatar} />
+                )}
+                <div className={styles.sheetCommentBody}>
+                  <p className={styles.sheetCommentMeta}>
+                    <span className={styles.sheetCommentUser}>{comment.authorName}</span>
+                    <span className={styles.sheetCommentTime}>
+                      {timeAgo(comment.createdAt)}
+                    </span>
+                  </p>
+                  <p className={styles.sheetCommentText}>{comment.text}</p>
                 </div>
-              );
-            })
+                {comment.canDelete && (
+                  <button
+                    type="button"
+                    className={styles.sheetClose}
+                    onClick={() => onDelete(comment.id)}
+                    aria-label="댓글 삭제"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <path d="m18 6-12 12M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ))
           )}
         </div>
 
         <form className={styles.sheetForm} onSubmit={handleSubmit}>
           <div
             className={styles.sheetFormAvatar}
-            style={{ background: currentUser.avatarGradient }}
+            style={{ background: currentUserAvatarGradient }}
           />
           <input
             type="text"

@@ -1,14 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import type { Reel, ReelUser } from "@/lib/reels-data";
 import { formatCount } from "@/lib/reels-data";
 import styles from "./reels.module.css";
 
+export interface FeedReel {
+  id: string;
+  title: string;
+  tags: string[];
+  videoUrl: string;
+  creatorName: string;
+}
+
 interface ReelCardProps {
-  reel: Reel;
-  user: ReelUser;
+  reel: FeedReel;
   liked: boolean;
   likeCount: number;
   commentCount: number;
@@ -18,7 +23,6 @@ interface ReelCardProps {
 
 export default function ReelCard({
   reel,
-  user,
   liked,
   likeCount,
   commentCount,
@@ -34,15 +38,29 @@ export default function ReelCard({
     window.setTimeout(() => setShowBurst(false), 700);
   };
 
+  const togglePlayback = (e: React.MouseEvent<HTMLVideoElement>) => {
+    const video = e.currentTarget;
+    if (video.paused) {
+      video.play();
+      setPaused(false);
+    } else {
+      video.pause();
+      setPaused(true);
+    }
+  };
+
   return (
     <section className={styles.reel}>
       <div className={styles.reelRow}>
-        <div
-          className={styles.reelSurface}
-          style={{ background: reel.gradient }}
-          onClick={() => setPaused((p) => !p)}
-          onDoubleClick={handleDoubleClick}
-        >
+        <div className={styles.reelSurface} onDoubleClick={handleDoubleClick}>
+          <video
+            className={styles.reelVideo}
+            src={reel.videoUrl}
+            autoPlay
+            loop
+            playsInline
+            onClick={togglePlayback}
+          />
           {paused && (
             <div className={styles.pausedIcon} aria-hidden="true">
               <svg width="64" height="64" viewBox="0 0 24 24" fill="white">
@@ -60,25 +78,17 @@ export default function ReelCard({
         </div>
 
         <div className={styles.infoPanel}>
-          <Link href={`/profile/${user.username}`} className={styles.infoUserRow}>
-            <span
-              className={styles.infoAvatar}
-              style={{ background: user.avatarGradient }}
-            />
+          <div className={styles.infoUserRow}>
+            <span className={styles.infoAvatar} />
             <div className={styles.infoUserText}>
-              <span className={styles.infoUsername}>{user.username}</span>
-              <span className={styles.infoMusic}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M9 18V5l12-2v13" />
-                  <circle cx="6" cy="18" r="3" />
-                  <circle cx="18" cy="16" r="3" />
-                </svg>
-                {reel.music}
-              </span>
+              <span className={styles.infoUsername}>{reel.creatorName}</span>
             </div>
-          </Link>
+          </div>
 
-          <p className={styles.infoCaption}>{reel.caption}</p>
+          <p className={styles.infoCaption}>{reel.title}</p>
+          {reel.tags.length > 0 && (
+            <p className={styles.infoMusic}>{reel.tags.map((t) => `#${t}`).join(" ")}</p>
+          )}
 
           <div className={styles.infoDivider} />
 
@@ -108,14 +118,6 @@ export default function ReelCard({
                 <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
               </svg>
               댓글 {formatCount(commentCount)}
-            </button>
-
-            <button type="button" className={styles.actionButton}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13" />
-                <polygon points="22 2 15 22 11 13 2 9 22 2" />
-              </svg>
-              공유 {formatCount(reel.shares)}
             </button>
           </div>
         </div>

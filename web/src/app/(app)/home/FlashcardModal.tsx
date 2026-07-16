@@ -1,15 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import type { CapturedItem } from "@/lib/home-data";
 import styles from "./home.module.css";
+
+export interface FlashcardItem {
+  field: string;
+  text: string;
+  note: string;
+  sourceTitle: string;
+}
 
 export default function FlashcardModal({
   items,
   startIndex,
   onClose,
 }: {
-  items: CapturedItem[];
+  items: FlashcardItem[];
   startIndex: number;
   onClose: () => void;
 }) {

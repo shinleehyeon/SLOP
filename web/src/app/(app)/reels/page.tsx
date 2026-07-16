@@ -1,25 +1,26 @@
 "use client";
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
-  CURRENT_USER_ID,
-  REELS,
-  getReelsByUserId,
-  getUserById,
-  getUserByUsername,
-  type Comment,
-  type Reel,
-} from "@/lib/reels-data";
-import ReelCard from "./ReelCard";
-import CommentsSheet from "./CommentsSheet";
+  createShortComment,
+  deleteShortComment,
+  fetchShortComments,
+  fetchShortGenerations,
+  fetchShortSeries,
+  toggleShortLike,
+} from "@/lib/api";
+import { getAccessToken } from "@/lib/auth";
+import ReelCard, { type FeedReel } from "./ReelCard";
+import CommentsSheet, { type UIComment } from "./CommentsSheet";
 import styles from "./reels.module.css";
 
 interface FeedItem {
   instanceId: string;
-  reel: Reel;
+  reel: FeedReel;
 }
 
-function buildLoop(baseReels: Reel[], cycle: number): FeedItem[] {
+function buildLoop(baseReels: FeedReel[], cycle: number): FeedItem[] {
   return baseReels.map((reel) => ({
     instanceId: `${reel.id}-c${cycle}`,
     reel,
@@ -32,25 +33,65 @@ export default function ReelsPage({
   searchParams: Promise<{ user?: string; start?: string }>;
 }) {
   const params = use(searchParams);
-  const filterUsername = params.user;
   const startReelId = params.start;
 
-  const filteredUser = filterUsername ? getUserByUsername(filterUsername) : undefined;
-  const baseReels = filteredUser ? getReelsByUserId(filteredUser.id) : REELS;
+  const [baseReels, setBaseReels] = useState<FeedReel[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const currentUser = getUserById(CURRENT_USER_ID)!;
+  useEffect(() => {
+    const accessToken = getAccessToken();
+    if (!accessToken) {
+      setLoadError("로그인이 필요합니다.");
+      return;
+    }
 
-  const [items, setItems] = useState<FeedItem[]>(() => [
-    ...buildLoop(baseReels, 0),
-    ...(filteredUser ? [] : buildLoop(baseReels, 1)),
-  ]);
-  const cycleRef = useRef(filteredUser ? 0 : 1);
+    fetchShortGenerations(accessToken)
+      .then(async (generations) => {
+        const seriesIds = [
+          ...new Set(
+            generations
+              .filter((g) => g.status === "COMPLETED" && g.seriesId)
+              .map((g) => g.seriesId as string),
+          ),
+        ];
+
+        const seriesList = await Promise.all(
+          seriesIds.map((id) => fetchShortSeries(id, accessToken).catch(() => null)),
+        );
+
+        const reels: FeedReel[] = seriesList
+          .filter((s) => s !== null)
+          .flatMap((series) =>
+            series!.shorts.map((short) => ({
+              id: short.id,
+              title: short.title,
+              tags: short.tags,
+              videoUrl: short.videoFileUrl,
+              creatorName: series!.title,
+            })),
+          );
+
+        setBaseReels(reels);
+      })
+      .catch(() => setLoadError("숏폼을 불러오지 못했습니다."));
+  }, []);
+
+  const [items, setItems] = useState<FeedItem[]>([]);
+  const cycleRef = useRef(1);
+
+  useEffect(() => {
+    if (!baseReels) return;
+    if (baseReels.length === 0) {
+      setItems([]);
+      return;
+    }
+    cycleRef.current = 1;
+    setItems([...buildLoop(baseReels, 0), ...buildLoop(baseReels, 1)]);
+  }, [baseReels]);
 
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
-  const [likeCountMap, setLikeCountMap] = useState<Record<string, number>>(() =>
-    Object.fromEntries(REELS.map((r) => [r.id, r.likes])),
-  );
-  const [commentsMap, setCommentsMap] = useState<Record<string, Comment[]>>({});
+  const [likeCountMap, setLikeCountMap] = useState<Record<string, number>>({});
+  const [commentsMap, setCommentsMap] = useState<Record<string, UIComment[]>>({});
   const [openCommentsFor, setOpenCommentsFor] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -71,7 +112,7 @@ export default function ReelsPage({
       el as Element,
     );
     if (index >= 0) currentIndexRef.current = index;
-  }, [startReelId]);
+  }, [startReelId, items]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -135,13 +176,12 @@ export default function ReelsPage({
   }, []);
 
   const loadMore = useCallback(() => {
-    if (filteredUser) return;
+    if (!baseReels || baseReels.length === 0) return;
     cycleRef.current += 1;
     setItems((prev) => [...prev, ...buildLoop(baseReels, cycleRef.current)]);
-  }, [baseReels, filteredUser]);
+  }, [baseReels]);
 
   useEffect(() => {
-    if (filteredUser) return;
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
     const observer = new IntersectionObserver(
@@ -152,7 +192,7 @@ export default function ReelsPage({
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [loadMore, filteredUser]);
+  }, [loadMore]);
 
   const toggleLike = (reelId: string) => {
     setLikedMap((prev) => {
@@ -163,21 +203,92 @@ export default function ReelsPage({
       }));
       return { ...prev, [reelId]: nowLiked };
     });
+
+    const accessToken = getAccessToken();
+    if (!accessToken) return;
+    toggleShortLike(reelId, accessToken)
+      .then((result) => {
+        setLikedMap((prev) => ({ ...prev, [reelId]: result.liked }));
+        setLikeCountMap((counts) => ({ ...counts, [reelId]: result.likeCount }));
+      })
+      .catch(() => {
+        // Best-effort; keep the optimistic local toggle as-is.
+      });
   };
 
+  useEffect(() => {
+    if (!openCommentsFor) return;
+    const accessToken = getAccessToken();
+    if (!accessToken) return;
+    fetchShortComments(openCommentsFor, accessToken)
+      .then((page) => {
+        setCommentsMap((prev) => ({
+          ...prev,
+          [openCommentsFor]: page.items.map((c) => ({
+            id: c.id,
+            text: c.content,
+            createdAt: new Date(c.createdAt).getTime(),
+            authorName: c.author.name,
+            authorAvatarUrl: c.author.profileImageUrl,
+            canDelete: false,
+          })),
+        }));
+      })
+      .catch(() => {
+        // Keep whatever local comments already exist for this reel.
+      });
+  }, [openCommentsFor]);
+
   const addComment = (reelId: string, text: string) => {
+    const optimistic: UIComment = {
+      id: `local-${reelId}-${Date.now()}`,
+      text,
+      createdAt: Date.now(),
+      authorName: "나",
+      authorAvatarUrl: null,
+      canDelete: true,
+    };
     setCommentsMap((prev) => ({
       ...prev,
-      [reelId]: [
-        ...(prev[reelId] ?? []),
-        {
-          id: `c-${reelId}-${Date.now()}`,
-          userId: CURRENT_USER_ID,
-          text,
-          createdAt: Date.now(),
-        },
-      ],
+      [reelId]: [...(prev[reelId] ?? []), optimistic],
     }));
+
+    const accessToken = getAccessToken();
+    if (!accessToken) return;
+    createShortComment(reelId, text, accessToken)
+      .then((created) => {
+        setCommentsMap((prev) => ({
+          ...prev,
+          [reelId]: (prev[reelId] ?? []).map((c) =>
+            c.id === optimistic.id
+              ? {
+                  id: created.id,
+                  text: created.content,
+                  createdAt: new Date(created.createdAt).getTime(),
+                  authorName: created.author.name,
+                  authorAvatarUrl: created.author.profileImageUrl,
+                  canDelete: true,
+                }
+              : c,
+          ),
+        }));
+      })
+      .catch(() => {
+        // Keep the optimistic local comment as-is.
+      });
+  };
+
+  const deleteComment = (reelId: string, commentId: string) => {
+    setCommentsMap((prev) => ({
+      ...prev,
+      [reelId]: (prev[reelId] ?? []).filter((c) => c.id !== commentId),
+    }));
+
+    const accessToken = getAccessToken();
+    if (!accessToken || commentId.startsWith("local-")) return;
+    deleteShortComment(reelId, commentId, accessToken).catch(() => {
+      // Best-effort; comment already removed locally.
+    });
   };
 
   const openReelId = openCommentsFor;
@@ -188,10 +299,27 @@ export default function ReelsPage({
 
   return (
     <div className={styles.page}>
-      <div className={styles.container} ref={containerRef}>
-        {items.map((item) => {
-          const user = getUserById(item.reel.userId)!;
-          return (
+      <Link href="/profile" className={styles.closeButton} aria-label="닫기">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+          <path d="m18 6-12 12M6 6l12 12" />
+        </svg>
+      </Link>
+
+      {loadError && (
+        <div className={styles.reel}>
+          <p className={styles.infoCaption}>{loadError}</p>
+        </div>
+      )}
+
+      {!loadError && baseReels?.length === 0 && (
+        <div className={styles.reel}>
+          <p className={styles.infoCaption}>아직 생성된 숏폼이 없어요</p>
+        </div>
+      )}
+
+      {!loadError && baseReels && baseReels.length > 0 && (
+        <div className={styles.container} ref={containerRef}>
+          {items.map((item) => (
             <div
               key={item.instanceId}
               data-reel-id={item.reel.id}
@@ -199,29 +327,27 @@ export default function ReelsPage({
             >
               <ReelCard
                 reel={item.reel}
-                user={user}
                 liked={!!likedMap[item.reel.id]}
-                likeCount={likeCountMap[item.reel.id] ?? item.reel.likes}
+                likeCount={likeCountMap[item.reel.id] ?? 0}
                 commentCount={
-                  item.reel.id in commentsMap
-                    ? commentsMap[item.reel.id].length
-                    : 0
+                  item.reel.id in commentsMap ? commentsMap[item.reel.id].length : 0
                 }
                 onToggleLike={() => toggleLike(item.reel.id)}
                 onOpenComments={() => setOpenCommentsFor(item.reel.id)}
               />
             </div>
-          );
-        })}
-        {!filteredUser && <div ref={sentinelRef} className={styles.sentinel} />}
-      </div>
+          ))}
+          <div ref={sentinelRef} className={styles.sentinel} />
+        </div>
+      )}
 
       <CommentsSheet
         open={!!openReelId}
         onClose={() => setOpenCommentsFor(null)}
         comments={openReelComments}
         onSubmit={(text) => openReelId && addComment(openReelId, text)}
-        currentUser={currentUser}
+        onDelete={(commentId) => openReelId && deleteComment(openReelId, commentId)}
+        currentUserAvatarGradient="linear-gradient(135deg, #70eaff, #4de0fa)"
       />
     </div>
   );

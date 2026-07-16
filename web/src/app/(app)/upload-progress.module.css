@@ -1,16 +1,16 @@
 .card {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
+  right: 20px;
+  bottom: 20px;
   z-index: 200;
   display: flex;
   align-items: center;
-  gap: 10px;
-  max-width: 320px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: #ffffff;
-  box-shadow: 0 8px 24px rgba(17, 24, 39, 0.16);
+  gap: 14px;
+  max-width: 400px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: #14161c;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
   font-family: var(--font-geist-sans), -apple-system, sans-serif;
   animation: slideIn 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
@@ -28,11 +28,11 @@
 
 .spinner {
   flex-shrink: 0;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  border: 2.5px solid #e2e3e7;
-  border-top-color: #22c1e2;
+  border: 3px solid rgba(255, 255, 255, 0.18);
+  border-top-color: #70eaff;
   animation: spin 0.7s linear infinite;
 }
 
@@ -44,11 +44,11 @@
 
 .doneCheck {
   flex-shrink: 0;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background: #22c1e2;
-  color: #ffffff;
+  background: #70eaff;
+  color: #0b1220;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -57,42 +57,42 @@
 .body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
   min-width: 0;
 }
 
 .text {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
-  color: #111827;
+  color: #f4f5f7;
   white-space: nowrap;
 }
 
 .progressTrack {
-  width: 140px;
-  height: 4px;
+  width: 170px;
+  height: 5px;
   border-radius: 9999px;
-  background: #ececef;
+  background: rgba(255, 255, 255, 0.14);
   overflow: hidden;
 }
 
 .progressFill {
   height: 100%;
   border-radius: 9999px;
-  background: #22c1e2;
+  background: #70eaff;
   transition: width 0.15s ease;
 }
 
 .watchButton {
   flex-shrink: 0;
-  height: 30px;
-  padding: 0 12px;
+  height: 34px;
+  padding: 0 14px;
   display: flex;
   align-items: center;
   border-radius: 9999px;
-  background: #22c1e2;
-  color: #ffffff;
-  font-size: 12px;
+  background: #70eaff;
+  color: #0b1220;
+  font-size: 13px;
   font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
@@ -103,11 +103,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border: none;
   border-radius: 50%;
-  background: #f4f5f7;
-  color: #6b7280;
+  background: rgba(255, 255, 255, 0.12);
+  color: #d1d5db;
   cursor: pointer;
 }

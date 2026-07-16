@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import {
   CURRENT_USER_ID,
   getReelsByUserId,
@@ -10,20 +10,31 @@ import {
   formatCount,
 } from "@/lib/reels-data";
 import { fetchMe, type MeUser } from "@/lib/api";
-import { getAccessToken } from "@/lib/auth";
+import { clearAuthTokens, getAccessToken } from "@/lib/auth";
+import EditProfileModal from "./EditProfileModal";
 import styles from "./profile.module.css";
 
 export default function ProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ username: string }>;
+  searchParams: Promise<{ edit?: string }>;
 }) {
   const { username } = use(params);
+  const { edit } = use(searchParams);
+  const router = useRouter();
   const user = getUserByUsername(username);
   const [following, setFollowing] = useState(false);
   const [me, setMe] = useState<MeUser | null>(null);
+  const [editing, setEditing] = useState(edit === "1");
 
   const isMe = user?.id === CURRENT_USER_ID;
+
+  const handleLogout = () => {
+    clearAuthTokens();
+    router.replace("/login");
+  };
 
   useEffect(() => {
     if (!isMe) return;
@@ -64,9 +75,22 @@ export default function ProfilePage({
             </div>
 
             {isMe ? (
-              <button type="button" className={styles.editButton}>
-                프로필 편집
-              </button>
+              <div className={styles.myActions}>
+                <button
+                  type="button"
+                  className={styles.editButton}
+                  onClick={() => setEditing(true)}
+                >
+                  프로필 편집
+                </button>
+                <button
+                  type="button"
+                  className={styles.logoutButton}
+                  onClick={handleLogout}
+                >
+                  로그아웃
+                </button>
+              </div>
             ) : (
               <button
                 type="button"
@@ -122,6 +146,14 @@ export default function ProfilePage({
           )}
         </div>
       </div>
+
+      {editing && me && (
+        <EditProfileModal
+          me={me}
+          onClose={() => setEditing(false)}
+          onUpdated={(updated) => setMe(updated)}
+        />
+      )}
     </div>
   );
 }

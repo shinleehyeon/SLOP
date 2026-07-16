@@ -93,7 +93,7 @@ export default function UploadModal({ open, onClose }: UploadModalProps) {
   const [selected, setSelected] = useState<Set<ContentKind>>(new Set());
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const { startUpload } = useUploadProgress();
+  const { startUpload, startFileUpload } = useUploadProgress();
 
   const filePreviewUrl = useMemo(
     () =>
@@ -140,7 +140,13 @@ export default function UploadModal({ open, onClose }: UploadModalProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
-    startUpload();
+    if (selected.has("file") && form.file) {
+      startFileUpload(form.file);
+    } else if (selected.has("link")) {
+      startUpload("link", form.link.trim());
+    } else {
+      startUpload("text", form.text.trim());
+    }
     reset();
     onClose();
   };
