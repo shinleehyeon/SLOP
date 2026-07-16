@@ -29,5 +29,8 @@ dist/
 # plasmo
 .plasmo
 
+# mock/test media (large, not meant to ship)
+assets/mock-shorts.mp4
+
 # typescript
 .tsbuildinfo

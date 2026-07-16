@@ -6,14 +6,14 @@ export const SHORTS_BUTTON_STYLE = `
     z-index: 0;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 14px 22px;
+    gap: 6px;
+    padding: 10px 16px;
     border: none;
     border-radius: 9999px;
     background: #70eaff;
     color: #0b1220;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 800;
     cursor: pointer;
     white-space: nowrap;
@@ -42,12 +42,12 @@ export const SHORTS_BUTTON_STYLE = `
 
   .slop-shorts-btn--collapsible {
     gap: 0;
-    padding: 16px;
+    padding: 12px;
     transition: padding 0.28s cubic-bezier(0.32, 0.72, 0, 1), background-color 0.15s ease;
   }
 
   .slop-shorts-btn--collapsible:hover {
-    padding: 16px 24px;
+    padding: 12px 18px;
   }
 
   .slop-shorts-btn--collapsible .slop-shorts-label {
@@ -61,7 +61,7 @@ export const SHORTS_BUTTON_STYLE = `
   }
 
   .slop-shorts-btn--collapsible:hover .slop-shorts-label {
-    max-width: 160px;
+    max-width: 140px;
     margin-left: 8px;
     opacity: 1;
   }
@@ -69,7 +69,7 @@ export const SHORTS_BUTTON_STYLE = `
 
 function ShortsIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 8 8" fill="none">
+    <svg width="15" height="15" viewBox="0 0 8 8" fill="none">
       <path
         fillRule="evenodd"
         clipRule="evenodd"
@@ -117,7 +117,7 @@ const ShortsButton = forwardRef<HTMLButtonElement, ShortsButtonProps>(
         <span className="slop-shorts-icon">
           <ShortsIcon />
         </span>
-        <span className="slop-shorts-label" style={{fontSize: 24}}>{label}</span>
+        <span className="slop-shorts-label">{label}</span>
       </button>
     )
   }

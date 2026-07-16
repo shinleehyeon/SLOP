@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react"
 
 import LoginGate, { LOGIN_GATE_STYLE } from "~components/login-gate"
 import ShortsButton, { SHORTS_BUTTON_STYLE } from "~components/shorts-button"
+import ShortsPanel, { SHORTS_PANEL_STYLE } from "~components/shorts-panel"
 import { getStoredTokens } from "~lib/auth"
 
 export const config: PlasmoCSConfig = {
@@ -15,6 +16,7 @@ export const getStyle: PlasmoGetStyle = () => {
   style.textContent = `
     ${LOGIN_GATE_STYLE}
     ${SHORTS_BUTTON_STYLE}
+    ${SHORTS_PANEL_STYLE}
 
     .slop-tsp-trigger {
       position: fixed;
@@ -93,6 +95,15 @@ export const getStyle: PlasmoGetStyle = () => {
       background: #e9ebee;
     }
 
+    .slop-tsp-icon-btn--active {
+      background: #dff8ff;
+      color: #0891b2;
+    }
+
+    .slop-tsp-icon-btn--active:hover {
+      background: #cdf3ff;
+    }
+
     .slop-tsp-right {
       display: flex;
       align-items: center;
@@ -149,6 +160,15 @@ export const getStyle: PlasmoGetStyle = () => {
       from { opacity: 0; transform: translateY(4px) scale(0.98); }
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
+
+    .slop-tsp-content-fade {
+      animation: slop-tsp-content-fade 0.26s ease 40ms both;
+    }
+
+    @keyframes slop-tsp-content-fade {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   `
   return style
 }
@@ -179,6 +199,20 @@ function CopyIcon() {
         d="M10 6V3.5C10 2.67 9.33 2 8.5 2H3.5C2.67 2 2 2.67 2 3.5V8.5C2 9.33 2.67 10 3.5 10H6"
         stroke="currentColor"
         strokeWidth="1.4"
+      />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M3.5 8.5L6.5 11.5L12.5 4.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   )
@@ -249,10 +283,14 @@ function TextSelectPopup() {
   const [phase, setPhase] = useState<Phase>("hidden")
   const [point, setPoint] = useState({ x: 0, y: 0 })
   const [showGate, setShowGate] = useState(false)
+  const [showShortsPanel, setShowShortsPanel] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [feedback, setFeedback] = useState<"up" | "down" | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const cardRef = useRef<HTMLDivElement | null>(null)
   const prevCardSizeRef = useRef<{ width: number; height: number } | null>(null)
   const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const handleStorageChange = (
@@ -339,6 +377,7 @@ function TextSelectPopup() {
       document.removeEventListener("mouseup", handleMouseUp, true)
       document.removeEventListener("mousedown", handleMouseDown, true)
       if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current)
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current)
     }
   }, [])
 
@@ -361,80 +400,127 @@ function TextSelectPopup() {
     setPhase("hidden")
   }
 
-  if (phase === "hidden") {
-    return showGate ? (
-      <LoginGate source="extension" onClose={() => setShowGate(false)} />
-    ) : null
+  const handleShortsClick = async () => {
+    const tokens = await getStoredTokens()
+    if (!tokens) {
+      setShowGate(true)
+      return
+    }
+    setShowShortsPanel(true)
   }
 
-  if (phase === "trigger") {
-    const pos = clampPosition(point.x, point.y, 110, 40)
-    return (
-      <div ref={containerRef}>
-        <button
-          type="button"
-          className="slop-tsp-trigger"
-          style={{ left: pos.x, top: pos.y }}
-          onClick={handleTriggerClick}>
-          <ListIcon />
-          설명
-        </button>
-      </div>
-    )
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(MOCK_RESULT_TEXT)
+    } catch {
+      // clipboard access can be blocked on some pages; nothing more to do
+    }
+    setCopied(true)
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current)
+    copyTimeoutRef.current = setTimeout(() => setCopied(false), 1500)
   }
 
-  const pos = clampPosition(point.x, point.y, 380, 260)
+  const toggleFeedback = (value: "up" | "down") => {
+    setFeedback((prev) => (prev === value ? null : value))
+  }
+
+  const triggerPos = clampPosition(point.x, point.y, 110, 40)
+  const cardPos = clampPosition(point.x, point.y, 380, 260)
 
   return (
-    <div ref={containerRef}>
-      <div ref={cardRef} className="slop-tsp-card" style={{ left: pos.x, top: pos.y }}>
-        {phase === "loading" && (
-          <>
-            <div className="slop-tsp-card-header">
-              <ShortsButton label="Shorts로 만들기" />
-            </div>
-            <div className="slop-tsp-skeleton-wrap">
-              {SKELETON_WIDTHS.map((width, i) => (
-                <div
-                  key={i}
-                  className="slop-tsp-skeleton-line"
-                  style={{ width, animationDelay: `${i * 0.08}s` }}
-                />
-              ))}
-            </div>
-          </>
-        )}
+    <>
+      {phase === "trigger" && (
+        <div ref={containerRef}>
+          <button
+            type="button"
+            className="slop-tsp-trigger"
+            style={{ left: triggerPos.x, top: triggerPos.y }}
+            onClick={handleTriggerClick}>
+            <ListIcon />
+            설명
+          </button>
+        </div>
+      )}
 
-        {phase === "result" && (
-          <>
-            <div className="slop-tsp-card-header slop-tsp-result">
-              <div className="slop-tsp-icon-group">
-                <button type="button" className="slop-tsp-icon-btn" title="복사">
-                  <CopyIcon />
-                </button>
-                <button type="button" className="slop-tsp-icon-btn" title="좋아요">
-                  <ThumbsUpIcon />
-                </button>
-                <button type="button" className="slop-tsp-icon-btn" title="싫어요">
-                  <ThumbsDownIcon />
-                </button>
+      {(phase === "loading" || phase === "result") && (
+        <div ref={containerRef}>
+          <div ref={cardRef} className="slop-tsp-card" style={{ left: cardPos.x, top: cardPos.y }}>
+            {phase === "loading" && (
+              <div className="slop-tsp-content-fade">
+                <div className="slop-tsp-card-header">
+                  <ShortsButton label="Shorts로 만들기" onClick={handleShortsClick} />
+                </div>
+                <div className="slop-tsp-skeleton-wrap">
+                  {SKELETON_WIDTHS.map((width, i) => (
+                    <div
+                      key={i}
+                      className="slop-tsp-skeleton-line"
+                      style={{ width, animationDelay: `${i * 0.08}s` }}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="slop-tsp-right">
-                <ShortsButton label="Shorts로 만들기" />
-                <button
-                  type="button"
-                  className="slop-tsp-close-btn"
-                  onClick={handleClose}
-                  title="닫기">
-                  <CloseIcon />
-                </button>
+            )}
+
+            {phase === "result" && (
+              <div className="slop-tsp-content-fade">
+                <div className="slop-tsp-card-header slop-tsp-result">
+                  <div className="slop-tsp-icon-group">
+                    <button
+                      type="button"
+                      className="slop-tsp-icon-btn"
+                      onClick={handleCopy}
+                      title="복사">
+                      {copied ? <CheckIcon /> : <CopyIcon />}
+                    </button>
+                    <button
+                      type="button"
+                      className={
+                        feedback === "up"
+                          ? "slop-tsp-icon-btn slop-tsp-icon-btn--active"
+                          : "slop-tsp-icon-btn"
+                      }
+                      onClick={() => toggleFeedback("up")}
+                      title="좋아요">
+                      <ThumbsUpIcon />
+                    </button>
+                    <button
+                      type="button"
+                      className={
+                        feedback === "down"
+                          ? "slop-tsp-icon-btn slop-tsp-icon-btn--active"
+                          : "slop-tsp-icon-btn"
+                      }
+                      onClick={() => toggleFeedback("down")}
+                      title="싫어요">
+                      <ThumbsDownIcon />
+                    </button>
+                  </div>
+                  <div className="slop-tsp-right">
+                    <ShortsButton label="Shorts로 만들기" onClick={handleShortsClick} />
+                    <button
+                      type="button"
+                      className="slop-tsp-close-btn"
+                      onClick={handleClose}
+                      title="닫기">
+                      <CloseIcon />
+                    </button>
+                  </div>
+                </div>
+                <p className="slop-tsp-result-text">{MOCK_RESULT_TEXT}</p>
               </div>
-            </div>
-            <p className="slop-tsp-result-text">{MOCK_RESULT_TEXT}</p>
-          </>
-        )}
-      </div>
-    </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showShortsPanel && (
+        <ShortsPanel onClose={() => setShowShortsPanel(false)} />
+      )}
+      {showGate && (
+        <LoginGate source="extension" onClose={() => setShowGate(false)} />
+      )}
+    </>
   )
 }
 
