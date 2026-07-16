@@ -1,7 +1,6 @@
 "use client";
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import {
   createShortComment,
   deleteShortComment,
@@ -299,12 +298,6 @@ export default function ReelsPage({
 
   return (
     <div className={styles.page}>
-      <Link href="/profile" className={styles.closeButton} aria-label="닫기">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-          <path d="m18 6-12 12M6 6l12 12" />
-        </svg>
-      </Link>
-
       {loadError && (
         <div className={styles.reel}>
           <p className={styles.infoCaption}>{loadError}</p>
