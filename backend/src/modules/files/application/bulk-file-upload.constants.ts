@@ -1,0 +1,2 @@
+export const BULK_FILE_UPLOAD_MAX_ITEMS = 20;
+export const BULK_FILE_DELETE_MAX_ITEMS = 50;

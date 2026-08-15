@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "bun .cursor/hooks/biome-after-edit.ts"
+      }
+    ],
+    "stop": [
+      {
+        "command": "bun .cursor/hooks/verify-after-stop.ts"
+      }
+    ]
+  }
+}

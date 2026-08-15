@@ -1,0 +1,41 @@
+---
+description: Agent 작업 순서 및 완료 전 검증 — 해커톤 백엔드
+alwaysApply: true
+---
+
+# Agent Workflow
+
+## 작업 시작
+
+1. 요청 범위 파악 — 새 모듈(`@new-api-module`) vs 기존 API(`@add-endpoint`) vs 디버깅(`@debug-backend`)
+2. 관련 Skill이 있으면 먼저 따름
+3. 주변 코드 패턴 확인 후 최소 diff로 구현
+
+## DB 변경 시
+
+1. `prisma/schemas/*.prisma`만 수정 (**Agent**)
+2. **Agent는 Prisma CLI 실행 금지** — migration 파일 생성·`prisma migrate`·`prisma:generate`·`prisma:seed` 등 전부 사용자가 터미널에서 실행
+3. 사용자에게 `bun run prisma:migrate` → `bun run prisma:generate` 안내
+
+## 구현 후 (필수)
+
+```bash
+bun run check
+bun run build
+```
+
+## 새 모듈
+
+기존 모듈(`src/modules/*`) 패턴을 참고해 폴더·DTO·RBAC를 직접 추가 → `app.module.ts` 등록 → verify
+
+## 금지
+
+- git commit/push (사용자 요청 없이)
+- `.env` 커밋
+- **Prisma CLI 실행** (`prisma:migrate`, `prisma:generate`, `prisma:seed`, `migrate deploy` 등)
+- **`prisma/migrations/**` 파일·폴더 생성·수정** (migration SQL 수동 작성 포함)
+- 요청 밖 리팩터링
+
+## 진입점
+
+`.cursor/AGENTS.md` — Skill/Script/Hook 목록

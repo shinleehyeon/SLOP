@@ -1,0 +1,40 @@
+model Expression {
+  id             String           @id @default(cuid())
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String
+  definition     String
+  sourceTitle    String?
+  sourceUrl      String?
+  fieldId        String?
+  field          Field?           @relation(fields: [fieldId], references: [id], onDelete: SetNull)
+  normalizedKey  String
+  dragCount      Int              @default(1)
+  firstDraggedAt DateTime         @default(now())
+  lastDraggedAt  DateTime         @default(now())
+  savedAt        DateTime         @default(now())
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  drags          ExpressionDrag[]
+
+  @@unique([userId, normalizedKey])
+  @@index([userId, lastDraggedAt])
+  @@index([userId, dragCount])
+  @@index([fieldId])
+  @@map("expressions")
+}
+
+model ExpressionDrag {
+  id           String     @id @default(cuid())
+  expressionId String
+  expression   Expression @relation(fields: [expressionId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalText String
+  content      String
+  createdAt    DateTime   @default(now())
+
+  @@index([userId, createdAt])
+  @@index([expressionId, createdAt])
+  @@map("expression_drags")
+}

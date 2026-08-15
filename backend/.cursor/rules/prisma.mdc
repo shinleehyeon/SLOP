@@ -1,0 +1,80 @@
+---
+description: Prisma schema, migration, seed 규칙
+globs: prisma/**/*
+alwaysApply: false
+---
+
+# Prisma Conventions
+
+## File layout
+
+- Generator/datasource: `prisma/schema.prisma`
+- Models: `prisma/schemas/*.prisma` (multi-file)
+- Migrations: `prisma/migrations/`
+- Seed: `prisma/seed.ts`
+- Config: `prisma.config.ts`
+
+## Client
+
+- Generated to `src/generated/prisma/`
+- Import: `@/generated/prisma/client`
+- After schema change: `bun run prisma:generate` (**사용자** 실행 — Agent 금지)
+
+## Migrations
+
+**Migration SQL 파일(`prisma/migrations/**/migration.sql`)은 직접 작성·수정하지 않음.**
+
+- schema만 수정 (`prisma/schemas/*.prisma`)
+- migration 생성·적용은 **사용자가** 터미널에서 `bun run prisma:migrate` 실행
+- 기존 migration 파일 편집, 수동 폴더/SQL 생성 금지
+
+## Agent — Prisma CLI 금지 (절대)
+
+**Agent는 Prisma 관련 CLI를 실행하거나 migration 파일을 만들면 안 됨.**
+
+금지 (Agent가 실행·생성·수정 모두 불가):
+
+- `prisma migrate dev` / `migrate deploy` / `migrate diff` / `migrate resolve` / `migrate reset`
+- `prisma db push` / `db execute` / `db pull`
+- `prisma/migrations/**` 폴더·파일 생성·수정·삭제 (SQL 포함)
+- `bun run prisma:migrate` / `prisma:deploy` / `prisma:seed` / `prisma:generate` / `prisma:reset` / `prisma:studio`
+- `prisma migrate diff`로 SQL 생성 후 migration 파일에 붙여넣기
+
+Agent가 할 수 있는 것:
+
+- `prisma/schemas/*.prisma` (및 필요 시 `prisma/seed.ts`) **코드만** 수정
+
+DB 반영은 사용자에게 안내:
+
+```text
+스키마 수정했습니다. 터미널에서 실행해 주세요:
+  bun run prisma:migrate
+  bun run prisma:generate
+```
+
+```bash
+bun run prisma:migrate    # dev: create + apply (사용자 실행)
+bun run prisma:deploy     # prod: apply only (사용자 실행)
+bun run prisma:seed       # explicit seed (사용자 실행)
+```
+
+- App runtime: `DATABASE_URL`
+- CLI migrate/seed: `DATABASE_DIRECT_URL` (fallback `DATABASE_URL`)
+
+## Seed
+
+- `prisma/seed.ts` uses `@prisma/adapter-pg` + bcrypt 12 rounds
+- Use `upsert` for idempotent re-runs
+- Default dev password: `Password123!`
+
+## Schema rules
+
+- IDs: `@default(cuid())`
+- Table mapping: `@@map("snake_case_table")`
+- Enum names: PascalCase (`UserRole`, `FileStatus`)
+- Password stored as `passwordHash` (never plain text)
+
+## Prisma 7
+
+- Client provider: `prisma-client` (not legacy `prisma-client-js`)
+- Both app (`PrismaService`) and seed need driver adapter

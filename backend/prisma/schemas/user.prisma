@@ -1,0 +1,52 @@
+enum OAuthProvider {
+  GOOGLE
+  GITHUB
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model User {
+  id              String         @id @default(cuid())
+  email           String         @unique
+  phone           String?        @unique
+  name            String
+  role            UserRole       @default(USER)
+  passwordHash    String?
+  emailVerifiedAt DateTime?
+  phoneVerifiedAt DateTime?
+  profileImageId  String?        @unique
+  profileImage   File?          @relation("UserProfileImage", fields: [profileImageId], references: [id], onDelete: SetNull)
+  files          File[]         @relation("UserFiles")
+  oauthAccounts     OAuthAccount[]
+  onboardingProfile OnboardingProfile?
+  fieldChoices      UserFieldChoice[]
+  createdFields     Field[]            @relation("FieldCreator")
+  shortSeries             ShortSeries[]
+  shortGenerationRequests ShortGenerationRequest[]
+  shortLikes              ShortLike[]
+  shortComments           ShortComment[]
+  expressions             Expression[]
+  expressionDrags         ExpressionDrag[]
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+
+  @@map("users")
+}
+
+model OAuthAccount {
+  id                String        @id @default(cuid())
+  provider          OAuthProvider
+  providerAccountId String
+  email             String?
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("oauth_accounts")
+}

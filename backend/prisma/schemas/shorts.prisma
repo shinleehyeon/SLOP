@@ -1,0 +1,89 @@
+model ShortSeries {
+  id               String      @id @default(cuid())
+  userId           String
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title            String
+  style            ShortsStyle
+  requestedSiteUrl String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  shorts           Short[]
+  generationRequest ShortGenerationRequest?
+
+  @@index([userId])
+  @@map("short_series")
+}
+
+model Short {
+  id            String         @id @default(cuid())
+  seriesId      String
+  series        ShortSeries    @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  episodeNumber Int
+  title         String
+  tags          String[]
+  videoFileId   String         @unique
+  videoFile     File           @relation("ShortVideoFile", fields: [videoFileId], references: [id], onDelete: Restrict)
+  likes         ShortLike[]
+  comments      ShortComment[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([seriesId, episodeNumber])
+  @@index([seriesId])
+  @@map("shorts")
+}
+
+model ShortLike {
+  id        String   @id @default(cuid())
+  shortId   String
+  short     Short    @relation(fields: [shortId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([shortId, userId])
+  @@index([userId])
+  @@map("short_likes")
+}
+
+model ShortComment {
+  id        String   @id @default(cuid())
+  shortId   String
+  short     Short    @relation(fields: [shortId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shortId, createdAt])
+  @@index([userId])
+  @@map("short_comments")
+}
+
+enum ShortGenerationStatus {
+  GENERATING
+  COMPLETED
+  DISPATCH_FAILED
+  FAILED
+}
+
+model ShortGenerationRequest {
+  id                String                 @id @default(cuid())
+  userId            String
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestedSiteUrl  String?
+  content           String?
+  links             String[]
+  attachmentFileIds String[]
+  aiJobId           String?
+  status            ShortGenerationStatus
+  seriesId          String?                @unique
+  series            ShortSeries?           @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  errorMessage      String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  @@index([userId, status])
+  @@map("short_generation_requests")
+}

@@ -1,0 +1,23 @@
+enum AuditLogStatus {
+  SUCCESS
+  FAILURE
+}
+
+model AuditLog {
+  id         String         @id @default(cuid())
+  action     String
+  status     AuditLogStatus @default(SUCCESS)
+  actorId    String?
+  targetType String?
+  targetId   String?
+  requestId  String?
+  ip         String?
+  userAgent  String?
+  metadata   Json?
+  createdAt  DateTime       @default(now())
+
+  @@index([actorId])
+  @@index([action, createdAt])
+  @@index([targetType, targetId])
+  @@map("audit_logs")
+}

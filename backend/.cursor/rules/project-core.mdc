@@ -1,0 +1,17 @@
+---
+description: Sunrinthon backend 프로젝트 공통 규칙 (bun, biome, git, diff 최소화)
+alwaysApply: true
+---
+
+# Project Core
+
+- Package manager는 **bun**만 사용 (`bun run dev`, `bun run check`, `bun install`)
+- Lint/format은 **Biome** (`bun run check`). ESLint/Prettier 추가하지 않음
+- Import alias: `@/*` → `src/*`
+- `.env`, credentials, secrets는 커밋하지 않음
+- **git commit은 사용자가 명시적으로 요청할 때만** 생성
+- 요청 범위 밖 코드 수정 금지 — 최소 diff 유지
+- 변경 후 `bun run check`로 확인. API/모듈 변경 시 `bun run build`도 실행
+- API prefix는 `/api` (main.ts). 응답은 envelope로 감싸짐 (`body` 필드 안에 실제 데이터)
+- ID 생성은 cuid (Prisma `@default(cuid())` 또는 `createId()` from `@paralleldrive/cuid2`)
+- **Prisma: Agent는 CLI·migration 파일 금지** — `prisma/schemas/`만 수정 후 사용자가 `bun run prisma:migrate` / `prisma:generate` 실행

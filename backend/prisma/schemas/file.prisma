@@ -1,0 +1,33 @@
+enum FileStatus {
+  PENDING
+  TEMPORARY
+  ATTACHED
+}
+
+enum FilePurpose {
+  PROFILE_IMAGE
+  GENERAL
+}
+
+model File {
+  id              String      @id @default(cuid())
+  status          FileStatus  @default(PENDING)
+  purpose         FilePurpose
+  key             String      @unique
+  originalName    String?
+  contentType     String
+  size            BigInt
+  uploadTokenHash String?
+  ownerId         String?
+  owner           User?       @relation("UserFiles", fields: [ownerId], references: [id], onDelete: Cascade)
+  profileImageOf  User?       @relation("UserProfileImage")
+  shortVideoOf    Short?      @relation("ShortVideoFile")
+  attachedAt      DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([ownerId])
+  @@index([status, expiresAt])
+  @@map("files")
+}

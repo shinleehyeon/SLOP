@@ -1,0 +1,66 @@
+---
+description: NestJS 모듈/컨트롤러/DTO/RBAC/audit log 작성 규칙
+globs: src/**/*.ts
+alwaysApply: false
+---
+
+# NestJS Module Conventions
+
+## Layer structure
+
+```
+src/modules/<name>/
+  application/<name>.service.ts      # business logic
+  infrastructure/<name>.repository.ts # Prisma only
+  presentation/<name>.controller.ts   # HTTP + decorators
+  presentation/dto/*.dto.ts           # Zod DTOs
+  <name>.module.ts
+```
+
+Controller는 service에 위임만. Repository는 PrismaService만 사용.
+
+## DTOs
+
+- Request/response 모두 **Zod + nestjs-zod** (`createZodDto`)
+- List response: `createPaginatedResponseSchema()` from `@/common/dto/pagination.dto`
+- OpenAPI: `@ApiController({ tag, group, description? })` on class, `@ApiEndpoint({ title, status, response, errorStatuses, isPublic?, tag?, group? })` on handlers
+
+## RBAC
+
+모든 protected endpoint에 `@RequirePermissions(...)` 필수 (public 제외).
+
+새 권한 추가 순서:
+1. `src/infrastructure/rbac/rbac.definitions.ts` — `RBAC_ENTITIES`에 entity/action 추가
+2. `src/infrastructure/rbac/rbac.catalog.ts` — `RBAC.<entity>.<action>` 추가 (`perm()` 사용)
+3. `src/infrastructure/rbac/rbac.grants.ts` — role grants 추가
+4. Controller handler에 `@RequirePermissions(RBAC.x.y)` 적용
+
+## Audit log
+
+주요 상태 변경 시 `AuditLogService.record()` 호출.
+새 action은 `src/modules/audit-log/application/audit-log.actions.ts`에 추가.
+
+## Auth decorators
+
+- `@CurrentUserId()` / `@CurrentUser()` — 인증 사용자
+- Public: `@ApiEndpoint({ isPublic: true })`
+
+## Example controller handler
+
+```typescript
+@Controller('users')
+@ApiController({ tag: 'Users', group: 'Application', description: '...' })
+export class UsersController {
+  @Get()
+  @RequirePermissions(RBAC.user.list)
+  @ApiPaginationQuery()
+  @ApiEndpoint({ title: '목록', status: 200, response: ListDto, errorStatuses: [401, 403] })
+  list(@Query() query: PaginationQueryDto) {
+    return this.service.list(query);
+  }
+}
+```
+
+## New module
+
+`src/app.module.ts` imports에 등록. Global infra는 `src/infrastructure/`에만 추가.

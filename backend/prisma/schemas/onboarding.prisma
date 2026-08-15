@@ -1,0 +1,76 @@
+enum Tone {
+  CASUAL
+  POLITE
+  NEWS
+}
+
+enum DisplayFormat {
+  SENTENCE
+  KEYWORD_LIST
+  QNA
+}
+
+enum ShortsStyle {
+  FUN
+  INFO
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+model OnboardingProfile {
+  id            String        @id @default(cuid())
+  userId        String        @unique
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tone          Tone
+  displayFormat DisplayFormat
+  shortsStyle   ShortsStyle
+  completedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("onboarding_profiles")
+}
+
+model Field {
+  id          String            @id @default(cuid())
+  name        String            @unique
+  createdById String?
+  createdBy   User?             @relation("FieldCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime          @default(now())
+  userChoices UserFieldChoice[]
+  termCaches  FieldTermCache[]
+  expressions Expression[]
+
+  @@map("fields")
+}
+
+model FieldTermCache {
+  id        String   @id @default(cuid())
+  fieldId   String
+  field     Field    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  tone      Tone
+  terms     Json
+  createdAt DateTime @default(now())
+
+  @@unique([fieldId, tone])
+  @@map("field_term_caches")
+}
+
+model UserFieldChoice {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fieldId    String
+  field      Field      @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  difficulty Difficulty
+  createdAt  DateTime   @default(now())
+
+  @@unique([userId, fieldId])
+  @@index([userId])
+  @@index([fieldId])
+  @@map("user_field_choices")
+}
